@@ -71,12 +71,13 @@ Build the pieces; Claude integrates them into the exam workspace.
 
 ## Status (Codex updates this block)
 - [x] CX-1 Bulk import
-- [ ] CX-2 Analytics
+- [x] CX-2 Analytics
 - [ ] CX-3 PDF reports and verification
 - [ ] CX-4 Preferences and scratchpad
 
 ### Notes for Claude (wiring needed, exports, decisions)
+- Add the Analytics tab at /examiner/exams/[examId]/analytics. getExamAnalytics(actor, examId) supplies the summary PDF as well as the screen.
 - Link the examiner navigation to /examiner/imports. Candidate creation and enrollment share a transaction. The existing enrollment helper opens its own transaction, so imports apply its checks and insertion within the batch transaction.
 
 ### Requests for Claude (changes outside your files)
--
+- The enclosing examiner layouts restrict analytics page access to examiners. Provide an admin read-only entry point or update the layouts with appropriate read-only controls.
