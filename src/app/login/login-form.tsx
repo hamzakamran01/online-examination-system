@@ -51,8 +51,8 @@ export function LoginForm({ next }: { next?: string }) {
   })
 
   return (
-    <div className="space-y-8">
-      <form onSubmit={onSubmit} noValidate className="space-y-5">
+    <div className="flex flex-col gap-8">
+      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
         {error && (
           <div role="alert" className="flex gap-2 rounded-lg border border-danger/30 bg-danger-soft p-3 text-sm text-danger-text">
             <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
@@ -62,23 +62,23 @@ export function LoginForm({ next }: { next?: string }) {
         <FieldGroup>
           <Field data-invalid={!!errors.email}>
             <FieldLabel htmlFor="email">Email</FieldLabel>
-            <Input id="email" type="email" autoComplete="username" aria-invalid={!!errors.email} className="h-10" {...form.register("email")} />
+            <Input id="email" type="email" autoComplete="username" aria-invalid={!!errors.email} {...form.register("email")} />
             <FieldError errors={[errors.email]} />
           </Field>
           <Field data-invalid={!!errors.password}>
             <FieldLabel htmlFor="password">Password</FieldLabel>
-            <Input id="password" type="password" autoComplete="current-password" aria-invalid={!!errors.password} className="h-10" {...form.register("password")} />
+            <Input id="password" type="password" autoComplete="current-password" aria-invalid={!!errors.password} {...form.register("password")} />
             <FieldError errors={[errors.password]} />
           </Field>
         </FieldGroup>
-        <Button type="submit" className="h-10 w-full" disabled={isSubmitting}>
+        <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="animate-spin" aria-hidden />}
           {isSubmitting ? "Signing in" : "Sign in"}
         </Button>
       </form>
 
-      <div className="space-y-3 rounded-xl border border-dashed p-4">
-        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Demo accounts (fictional data)</p>
+      <div className="flex flex-col gap-3 rounded-md border border-dashed p-4">
+        <p className="text-[0.68rem] font-medium tracking-[0.14em] text-muted-foreground uppercase">Demo accounts (fictional data)</p>
         <div className="grid gap-2 sm:grid-cols-3">
           {DEMO.map((d) => (
             <Button

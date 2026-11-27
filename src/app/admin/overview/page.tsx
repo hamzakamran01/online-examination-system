@@ -11,8 +11,8 @@ export default async function Page() {
   const { stats, attention, days, audit } = await getPlatformOverview(actor)
   return (
     <>
-      <PageHeader title="Platform overview" />
-      <div className="space-y-6">
+      <PageHeader eyebrow={<span className="kicker">Administrator desk</span>} title="Platform overview" description="Operational snapshot. Account changes remain in the audit log." />
+      <div className="flex flex-col gap-6">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {Object.entries(stats).map(([label, value]) => (
             <Stat key={label} label={label} value={value} />
@@ -21,7 +21,7 @@ export default async function Page() {
         <Panel>
           <PanelHeader title="Needs attention" />
           {attention.length ? (
-            <ul className="list-disc space-y-2 px-9 py-4">
+            <ul className="flex list-disc flex-col gap-2 px-9 py-4">
               {attention.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}

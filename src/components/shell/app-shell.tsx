@@ -16,6 +16,7 @@ type NavItem = { href: string; label: string; icon: React.ComponentType<{ classN
 
 const NAV: Record<Role, NavItem[]> = {
   admin: [
+    { href: "/admin/overview", label: "Overview", icon: LayoutDashboard },
     { href: "/admin", label: "Users", icon: Users, exact: true },
     { href: "/admin/audit", label: "Audit log", icon: FileClock },
   ],
@@ -38,17 +39,22 @@ function SidebarBody({ role, user, onNavigate }: { role: Role; user: { name: str
   const pathname = usePathname()
   const { resolvedTheme, setTheme } = useTheme()
   const [signingOut, setSigningOut] = React.useState(false)
+  const initials = user.name
+    .split(" ")
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join("")
 
   return (
     <div className="flex h-full flex-col">
-      <div className="px-5 pt-5 pb-6">
+      <div className="flex flex-col gap-4 px-5 pt-6 pb-5">
         <Link href="/" onClick={onNavigate} className="rounded-md">
-          <Logo />
+          <Logo inverse />
         </Link>
+        <p className="text-[0.65rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">{ROLE_LABEL[role]} desk</p>
       </div>
       <nav aria-label="Main" className="flex-1 px-3">
-        <p className="px-3 pb-2 text-[0.7rem] font-medium tracking-wider text-muted-foreground uppercase">{ROLE_LABEL[role]}</p>
-        <ul className="space-y-0.5">
+        <ul className="flex flex-col gap-0.5">
           {NAV[role].map((item) => {
             const active = isActive(pathname, item)
             return (
@@ -58,11 +64,13 @@ function SidebarBody({ role, user, onNavigate }: { role: Role; user: { name: str
                   onClick={onNavigate}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                    active ? "bg-sidebar-accent text-foreground" : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
+                    "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+                    active
+                      ? "bg-sidebar-accent text-foreground shadow-[inset_3px_0_0_0_var(--seal)]"
+                      : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground"
                   )}
                 >
-                  <item.icon className={cn("size-4", active && "text-primary")} />
+                  <item.icon className={cn("size-4", active && "text-seal")} />
                   {item.label}
                 </Link>
               </li>
@@ -70,10 +78,13 @@ function SidebarBody({ role, user, onNavigate }: { role: Role; user: { name: str
           })}
         </ul>
       </nav>
-      <div className="space-y-3 border-t border-sidebar-border p-3">
-        <div className="flex items-center gap-3 px-2">
-          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-semibold text-primary" aria-hidden>
-            {user.name.split(" ").map((p) => p[0]).slice(0, 2).join("")}
+      <div className="flex flex-col gap-3 border-t border-sidebar-border p-3">
+        <div className="flex items-center gap-3 rounded-md bg-white/5 px-2 py-2">
+          <span
+            className="grid size-9 shrink-0 place-items-center rounded-md bg-seal/20 font-heading text-sm font-semibold text-seal"
+            aria-hidden
+          >
+            {initials}
           </span>
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{user.name}</p>
@@ -84,7 +95,7 @@ function SidebarBody({ role, user, onNavigate }: { role: Role; user: { name: str
           <Button
             variant="outline"
             size="sm"
-            className="flex-1"
+            className="flex-1 border-white/15 bg-transparent text-foreground hover:bg-white/10"
             onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
             aria-label="Toggle dark mode"
           >
@@ -95,12 +106,11 @@ function SidebarBody({ role, user, onNavigate }: { role: Role; user: { name: str
           <Button
             variant="outline"
             size="sm"
-            className="flex-1"
+            className="flex-1 border-white/15 bg-transparent text-foreground hover:bg-white/10"
             disabled={signingOut}
             onClick={async () => {
               setSigningOut(true)
               await authClient.signOut()
-              // Full navigation clears every cached server component of the old session.
               window.location.replace("/login")
             }}
           >
@@ -116,19 +126,19 @@ function SidebarBody({ role, user, onNavigate }: { role: Role; user: { name: str
 export function AppShell({ role, user, children }: { role: Role; user: { name: string; email: string }; children: React.ReactNode }) {
   const [open, setOpen] = React.useState(false)
   return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[260px_1fr]">
-      <aside className="sticky top-0 hidden h-dvh border-r border-sidebar-border bg-sidebar lg:block">
+    <div className="min-h-dvh lg:grid lg:grid-cols-[272px_1fr]">
+      <aside className="surface-ink sticky top-0 hidden h-dvh border-r border-sidebar-border shadow-[inset_0_3px_0_0_var(--seal)] lg:block">
         <SidebarBody role={role} user={user} />
       </aside>
 
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/90 px-4 backdrop-blur lg:hidden">
-        <Logo />
+        <Logo compact />
         <Button variant="ghost" size="icon" aria-label="Open menu" onClick={() => setOpen(true)}>
           <Menu />
         </Button>
       </header>
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="left" className="w-72 bg-sidebar p-0">
+        <SheetContent side="left" className="surface-ink w-72 p-0">
           <SheetTitle className="sr-only">Navigation</SheetTitle>
           <SidebarBody role={role} user={user} onNavigate={() => setOpen(false)} />
         </SheetContent>

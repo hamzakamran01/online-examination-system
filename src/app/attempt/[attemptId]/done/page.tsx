@@ -25,11 +25,16 @@ export default async function DonePage({ params }: PageProps<"/attempt/[attemptI
   return (
     <main id="main" className="grid min-h-dvh place-items-center bg-canvas px-4">
       <ClearJournal attemptId={attemptId} />
-      <div className="w-full max-w-md space-y-6 rounded-2xl border bg-card p-8 text-center shadow-panel">
-        <Logo className="justify-center" />
-        <CheckCircle2 className="mx-auto size-12 text-success-text" aria-hidden />
-        <div className="space-y-2">
-          <h1 className="text-2xl font-semibold">{a.status === "submitted" ? "Exam submitted" : "Time is up: exam submitted"}</h1>
+      <div className="certificate w-full max-w-md rounded-lg bg-paper p-8 text-center">
+        <Logo className="mb-6 justify-center" />
+        <span className="seal-disc mx-auto" aria-hidden>
+          <CheckCircle2 className="size-7" />
+        </span>
+        <div className="mt-5 flex flex-col gap-2">
+          <p className="kicker">Submission receipt</p>
+          <h1 className="font-heading text-3xl font-medium">
+            {a.status === "submitted" ? "Exam submitted" : "Time is up: exam submitted"}
+          </h1>
           <p className="text-sm text-muted-foreground">
             Recorded at {fmtDateTime(a.submittedAt)}.{" "}
             {a.status === "auto_submitted" && "Answers saved before the deadline were submitted automatically. "}
@@ -37,12 +42,12 @@ export default async function DonePage({ params }: PageProps<"/attempt/[attemptI
           </p>
         </div>
         {a.isSandbox && (
-          <p className="flex items-center justify-center gap-2 rounded-lg bg-info-soft p-3 text-sm text-info-text">
+          <p className="mt-6 flex items-center justify-center gap-2 rounded-md bg-info-soft p-3 text-sm text-info-text">
             <FlaskConical className="size-4" aria-hidden />
             Sandbox attempt: not counted anywhere.
           </p>
         )}
-        <Link href={back} className={buttonVariants({ className: "w-full" })}>
+        <Link href={back} className={buttonVariants({ size: "lg", className: "mt-8 w-full" })}>
           {a.isSandbox ? "Back to exam review" : "Back to my exams"}
         </Link>
       </div>
