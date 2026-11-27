@@ -1,46 +1,59 @@
-# Build plan (~9.5 h remaining)
+# Build plan
 
-**Status:** Phase 0 | docs done, awaiting approval to scaffold | next: P0.1
+**Status:** Phase 0 done (deployed) | Phase 1 built, verification next (V.1) | Codex: CX-1 to CX-4 on branch `codex/secondary`
 
-Times are elapsed hackathon clock. Every task maps to SPEC IDs. Tick only when done end to end.
+Rules: tick only when it works end to end on the live URL. "built" = code merged, not yet verified in a browser.
+Each task maps to SPEC IDs. Brief sections define WHAT we build; this order follows dependencies and marks at risk.
 
-## Phase 0 (to 0:45): foundation
+## Phase 0: foundation (done)
 - [x] Docs: CLAUDE, SPEC, ARCHITECTURE, PLAN, INNOVATION, DECISIONS, DEMO, README skeleton
-- [ ] P0.1 Scaffold Next 16.4.6 app at root (pnpm), strict TS, Tailwind 4, copy shadcn ui + tokens from `starter/` (T-6.4)
-- [ ] P0.2 Neon project + Drizzle schema for all tables + first migration (T-6.4)
-- [ ] P0.3 Better Auth with roles, login page, guards, proxy redirect (C-3.1.1)
-- [ ] P0.4 Seed: admin, 2 examiners, 3 candidates, topics, 20 questions (SUB-7.3)
-- [ ] P0.5 Deploy skeleton to Vercel with env vars, confirm login on live URL (SUB-7.1)
+- [x] P0.1 Next 16.4.6 app at root, strict TS, Tailwind 4, shadcn ui + tokens from starter (T-6.4)
+- [x] P0.2 Neon project + Drizzle schema (18 tables) + first migration (T-6.4)
+- [x] P0.3 Better Auth with roles, login page, guards, proxy redirect (C-3.1.1)
+- [x] P0.4 Seed: admin, 2 examiners, 8 candidates, 22 questions, 4 exams in different states (SUB-7.3)
+- [x] P0.5 Deployed to Vercel (vercel.json, lazy DB client, /api/health diagnostics) (SUB-7.1)
 
-## Phase 1 (to 4:00): core workflow
-- [ ] P1.1 App shell per role, nav, status pills (UX-8.1)
-- [ ] P1.2 Admin users: list, create, role, deactivate + audit (C-3.1.2)
-- [ ] P1.3 Question bank CRUD, topics, filters, 3 types + schemes (C-3.3.1, C-3.3.2)
-- [ ] P1.4 Exam CRUD, settings, assign questions with marks, review page, publish/close lifecycle (C-3.2.1, C-3.2.2, C-3.2.3)
-- [ ] P1.5 Enrollment UI + candidate home grouped by status (C-3.4.1, C-3.4.2, C-3.4.3)
-- [ ] P1.6 Attempt start: eligibility checks, snapshot + shuffle, deadline (C-3.3.3, T-6.2a, T-6.2d)
-- [ ] P1.7 Workspace: palette states, timer, autosave with client_seq, resume, review + submit, lazy expiry (C-3.5.1, C-3.5.2, C-3.5.3, T-6.2b)
-- [ ] P1.8 Auto grading incl. multi-select rules (C-3.7.1)
-- [ ] P1.9 Authz pass: try foreign IDs per role on every endpoint (C-3.1.3, T-6.1)
+## Phase 1: core workflow (built, verifying)
+- [ ] P1.1 App shell per role, nav (UX-8.1) - built
+- [ ] P1.2 Admin users: list, create, role, deactivate, reset password + audit log (C-3.1.2) - built
+- [ ] P1.3 Question bank CRUD, topics, filters, 3 types + schemes, lock when in published exam (C-3.3.1, C-3.3.2) - built
+- [ ] P1.4 Exam CRUD, settings, assign questions with marks, review checklist, publish/unpublish/close (C-3.2.1 to C-3.2.3) - built
+- [ ] P1.5 Enrollment UI + candidate home grouped by status + lobby (C-3.4.1 to C-3.4.3) - built
+- [ ] P1.6 Attempt start: eligibility, frozen snapshot + shuffle, server deadline (C-3.3.3, T-6.2a, T-6.2d) - built
+- [ ] P1.7 Workspace: palette states, server-synced timer, journaled autosave with client_seq, resume, review + idempotent submit, lazy expiry (C-3.5.1 to C-3.5.3, T-6.2b) - built
+- [ ] P1.8 Auto grading incl. multi-select rules (C-3.7.1) - built
+- [ ] P1.9 Authz pass (C-3.1.3, T-6.1)
 
-## Phase 2 (to 7:00): grading, results, secondary
-- [ ] P2.1 Manual grading queue + validation + totals (C-3.7.2, C-3.7.3, T-6.2c)
-- [ ] P2.2 Results review + publish + candidate result page (C-3.8.1, C-3.8.3)
-- [ ] P2.3 Exam analytics (C-3.8.2) + question analytics (S-4.5)
-- [ ] P2.4 Network-aware status + offline journal (S-4.1, part of I-5.3)
-- [ ] P2.5 Workspace preferences + scratchpad (S-4.7, S-4.8)
-- [ ] P2.6 Sandbox preview (S-4.3)
-- [ ] P2.7 Bulk import candidates + questions with preview errors (S-4.4a, S-4.4b)
-- [ ] P2.8 PDF reports + verification code/QR + public verify page (S-4.2, S-4.6)
+### V: verification gate (next, ~45 min) - must pass before Phase 2
+- [ ] V.1 Live walkthrough as admin: create user, change role, deactivate, reset password, audit log entries
+- [ ] V.2 Live walkthrough as examiner: create question of each type, create exam, assign, enroll, checklist, publish, preview (sandbox)
+- [ ] V.3 Live walkthrough as candidate: home groups, lobby, start, answer all types, flag, refresh mid-exam, offline then online, submit twice, expiry on a short exam
+- [ ] V.4 Authz probe: candidate on another candidate's attempt, examiner2 on examiner's exam and question, candidate on examiner pages and APIs, unauthenticated API calls; network tab shows no answer key
+- [ ] V.5 Fix everything found, update SPEC statuses, commit
 
-## Phase 3 (to 8:30): monitoring + innovation
-- [ ] P3.1 Monitor table (polling), events timeline, signal wording (C-3.6.1, C-3.6.3)
-- [ ] P3.2 Announcements via heartbeat (C-3.6.2)
-- [ ] P3.3 Heartbeat gap detection, server-measured outage, audited extension, device-change event (I-5.3)
+## Phase 2: finish core, then integrate secondary
+1. Grading and results (completes the end-to-end workflow)
+   - [ ] P2.1 Manual grading queue for written answers, marks validated 0..max, feedback, totals recalculated in a transaction (C-3.7.2, C-3.7.3, T-6.2c)
+   - [ ] P2.2 Results review screen, publish gated on all graded, candidate result page, completed exams retained read-only (C-3.8.1, C-3.8.3)
+2. Core monitoring (moved up from Phase 3 to protect core marks)
+   - [ ] P2.3 Active attempts table, polled: progress, time left, last seen, connection state (C-3.6.1)
+   - [ ] P2.4 Announcements: examiner posts, candidates see within one poll (C-3.6.2)
+   - [ ] P2.5 Incident log: client signals (tab hidden, fullscreen exit, offline, reconnect) + server events (device change, late save rejected), "signal for review" wording and disclaimer (C-3.6.3)
+3. Integrate Codex branch (merge `codex/secondary`, review, wire up)
+   - [ ] P2.6 Analytics tab (C-3.8.2, S-4.5) - Codex CX-2
+   - [ ] P2.7 Imports link + enroll-from-import (S-4.4a, S-4.4b) - Codex CX-1
+   - [ ] P2.8 PDF download buttons, verify page (S-4.2, S-4.6) - Codex CX-3
+   - [ ] P2.9 Preferences panel + scratchpad inside the workspace (S-4.7, S-4.8) - Codex CX-4
+4. - [ ] P2.10 Network banner and per-question sync markers (S-4.1)
+
+## Phase 3: innovation 5.3 (see INNOVATION.md)
+- [ ] P3.1 Heartbeat: server-measured connection gaps recorded as `connection_gap` with duration (I-5.3)
+- [ ] P3.2 Examiner grants extension: default = measured gap, reason required, audit log, candidate notified, deadline recomputed (I-5.3)
+- [ ] P3.3 T-2 min unsynced-answers warning; resume-on-another-device demo path (I-5.3)
 - [ ] P3.4 (stretch) Difficulty-balanced paper generation (I-5.2)
 
-## Phase 4 (final 1:30): FEATURE FREEZE
-- [ ] P4.1 Realistic demo seed: one completed+published exam, one ongoing, one upcoming, one draft
+## Phase 4: FEATURE FREEZE (final 1:30)
+- [ ] P4.1 Demo seed: completed + published exam with graded attempts, ongoing exam with live attempts, upcoming, draft
 - [ ] P4.2 README complete, credentials verified on live URL (SUB-7.2)
 - [ ] P4.3 UI polish: empty states, 375px check, focus, contrast (UX-8.x)
 - [ ] P4.4 Rehearse DEMO.md twice on the live URL; final push + deploy before deadline (SUB-7.4)
@@ -48,8 +61,8 @@ Times are elapsed hackathon clock. Every task maps to SPEC IDs. Tick only when d
 ## Cut list (drop in this order if behind)
 1. I-5.2 balanced papers (stretch)
 2. Exam summary PDF (keep candidate result PDF)
-3. Fullscreen-exit event and device-change event (keep tab-hidden + connection gap)
+3. Fullscreen-exit signal (keep tab-hidden, offline and device change)
 4. Question import (keep candidate import)
 5. Scroll layout option in workspace prefs (keep font size + theme)
 6. Analytics charts reduced to table + one distribution chart
-Never cut: server timer, snapshot, idempotent submit, authz, publish gating, offline sync status.
+Never cut: server timer, frozen paper, idempotent submit, authz, publish gating, core monitoring, offline sync status.
