@@ -61,14 +61,18 @@ export async function resultPdf(r: ResultReport) {
         {r.grading === "pending" ? (r.passMark === null ? "Grading pending" : " (grading pending)") : ""}
       </Text>
       <Text style={styles.heading}>Question marks</Text>
-      <Row compact values={["Number", "Type", "Awarded", "Maximum"]} />
-      {r.items.map((item, i) => (
-        <Row
-          compact
-          key={i}
-          values={[i + 1, item.type, item.score === null ? "Pending" : fmtMarks(item.score), fmtMarks(item.max)]}
-        />
-      ))}
+      {r.items.length > 20 && r.items.length <= 40 ? (
+        <View style={{ flexDirection: "row", gap: 16 }}>
+          <View style={{ flex: 1 }}>
+            <QuestionRows items={r.items.slice(0, 20)} offset={0} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <QuestionRows items={r.items.slice(20)} offset={20} />
+          </View>
+        </View>
+      ) : (
+        <QuestionRows items={r.items} offset={0} />
+      )}
       <View wrap={false}>
         <Text style={styles.heading}>Report verification</Text>
         <PdfImage src={qr} style={{ width: 70, height: 70 }} />
@@ -76,6 +80,25 @@ export async function resultPdf(r: ResultReport) {
         <Text>Verify at {verify}</Text>
       </View>
     </Sheet>,
+  )
+}
+function QuestionRows({ items, offset }: { items: ResultReport["items"]; offset: number }) {
+  return (
+    <>
+      <Row compact values={["Number", "Type", "Awarded", "Maximum"]} />
+      {items.map((item, index) => (
+        <Row
+          compact
+          key={index}
+          values={[
+            offset + index + 1,
+            item.type,
+            item.score === null ? "Pending" : fmtMarks(item.score),
+            fmtMarks(item.max),
+          ]}
+        />
+      ))}
+    </>
   )
 }
 export function examPdf({ exam, stats, candidates }: ExamAnalytics) {
