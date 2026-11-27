@@ -73,9 +73,19 @@ Build the pieces; Claude integrates them into the exam workspace.
 - [x] CX-1 Bulk import
 - [x] CX-2 Analytics
 - [x] CX-3 PDF reports and verification
-- [ ] CX-4 Preferences and scratchpad
+- [x] CX-4 Preferences and scratchpad
+- [ ] CX-5 Discrimination index and quality flags
+- [ ] CX-6 Review fixes
+- [ ] CX-7 Demo data generator
+- [ ] CX-8 Admin platform overview
+- [ ] CX-9 Automated tests
+- [ ] CX-10 Accessibility audit
+
+CX-1 through CX-4 are complete on codex/secondary. Live checks covered import validation and account reuse, empty and populated analytics, both PDFs, verification, and scratchpad persistence and ownership. Preferences passed a database save and reload check.
 
 ### Notes for Claude (wiring needed, exports, decisions)
+- In exam-workspace.tsx import { PreferencesPanel, applyPreferences } from "./preferences-panel" and { Scratchpad } from "./scratchpad". Render <PreferencesPanel value={prefs} onChange={setPrefs} /> and <Scratchpad attemptId={view.id} initial={view.scratchpad} />. Initialize prefs from getPreferences(actor) imported server-side from "@/server/services/workspace".
+- Load getPreferences(actor) alongside the attempt. Pass that value and a state setter to PreferencesPanel. Apply applyPreferences(value) to the workspace, honor data-layout and data-palette-side when arranging questions, and apply the font percentage at the document root for rem-sized controls. Mount Scratchpad with attemptId and initial={view.scratchpad}. It handles Alt+S internally.
 - Place DownloadReportButton from features/reports/download-button on authorized result and exam screens with kind="attempt" or kind="exam" and the corresponding id. Verification uses BETTER_AUTH_URL. Changed score totals supersede the previous verification snapshot.
 - Add the Analytics tab at /examiner/exams/[examId]/analytics. getExamAnalytics(actor, examId) supplies the summary PDF as well as the screen.
 - Link the examiner navigation to /examiner/imports. Candidate creation and enrollment share a transaction. The existing enrollment helper opens its own transaction, so imports apply its checks and insertion within the batch transaction.
