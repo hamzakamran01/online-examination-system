@@ -208,7 +208,7 @@ export async function listExamDisputes(actor: SessionUser, examId: string) {
     byItem.set(d.itemId, h)
   }
   const questions = [...byItem.values()]
-    .map((h) => ({ ...h, rate: finalized ? h.total / finalized : 0, hotspot: isHotspot(h.total, finalized), voided: voids.get(h.itemId) ?? null }))
+    .map((h) => ({ ...h, rate: finalized ? h.total / finalized : 0, hotspot: isHotspot(h.total), voided: voids.get(h.itemId) ?? null }))
     .sort((a, b) => b.total - a.total)
 
   return {

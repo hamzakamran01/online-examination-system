@@ -5,7 +5,7 @@ import { requirePageRole } from "@/server/auth/guards"
 import { listExamDisputes } from "@/server/services/disputes"
 import { fmtDateTime } from "@/lib/format"
 import { cn } from "@/lib/utils"
-import { DISPUTE_STATUS_LABEL, DISPUTE_TYPE_LABEL, DISPUTE_WINDOW_DAYS, HOTSPOT_MIN_DISPUTES, HOTSPOT_MIN_RATE } from "@/lib/domain/disputes"
+import { DISPUTE_STATUS_LABEL, DISPUTE_TYPE_LABEL, DISPUTE_WINDOW_DAYS, HOTSPOT_MIN_DISPUTES } from "@/lib/domain/disputes"
 import { MetricStrip, Panel, PanelHeader, Stat } from "@/components/shell/page-header"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -46,7 +46,7 @@ export default async function DisputesPage({ params }: PageProps<"/examiner/exam
                 Questions attracting disputes
               </span>
             }
-            description={`Flagged at ${HOTSPOT_MIN_DISPUTES} or more disputes, or ${Math.round(HOTSPOT_MIN_RATE * 100)} percent of submitted papers. Many disputes on one question usually mean the wording or the answer key needs a second look, and voiding applies one rule to everyone.`}
+            description={`Flagged once ${HOTSPOT_MIN_DISPUTES} or more candidates dispute the same question. Many disputes on one question usually mean the wording or the answer key needs a second look, and voiding applies one rule to everyone.`}
           />
           <ul className="divide-y">
             {hot.map((q) => (

@@ -114,11 +114,10 @@ test("dispute window: closed before publication, open for the window, closed aft
   assert.equal(disputeWindow(pub, new Date(T + DISPUTE_WINDOW_MS - 1)).open, true)
   assert.equal(disputeWindow(pub, new Date(T + DISPUTE_WINDOW_MS)).open, false)
 })
-test("hotspot: two disputes, or a fifth of the papers", () => {
-  assert.equal(isHotspot(2, 100), true)
-  assert.equal(isHotspot(1, 5), true)
-  assert.equal(isHotspot(1, 6), false)
-  assert.equal(isHotspot(0, 0), false)
+test("hotspot: two independent disputes make a pattern, one does not", () => {
+  assert.equal(isHotspot(2), true)
+  assert.equal(isHotspot(1), false)
+  assert.equal(isHotspot(0), false)
 })
 test("dispute input: a real explanation and a known type are required", () => {
   const base = { attemptId: crypto.randomUUID(), itemId: crypto.randomUUID(), type: "grading_error", statement: "My answer covers rubric point 2 fully." }

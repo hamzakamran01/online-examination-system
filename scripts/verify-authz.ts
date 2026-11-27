@@ -41,12 +41,19 @@ async function check<T>(
   matrix.push({ service, actor, expected, actual })
   console.log(`${pass ? "PASS" : "FAIL"} ${service} / ${actor} (${actual}, expected ${expected})`)
 }
+const reactivated: string[] = []
 async function loadActor(handle: string): Promise<SessionUser> {
   const [row] = await db
     .select()
     .from(user)
     .where(eq(user.email, handle + "@examvault.test"))
-  if (!row?.active) throw Error("Missing active fixture account " + handle)
+  if (!row) throw Error("Missing fixture account " + handle)
+  // An earlier admin walkthrough may have deactivated a seeded account. Enrollment correctly refuses
+  // inactive candidates, so reactivate it for this run and restore the original state at the end.
+  if (!row.active) {
+    await db.update(user).set({ active: true }).where(eq(user.id, row.id))
+    reactivated.push(row.id)
+  }
   return { id: row.id, role: row.role, name: row.name, email: row.email }
 }
 
@@ -318,6 +325,7 @@ async function main() {
           .delete(auditLog)
           .where(or(inArray(auditLog.entityId, entities), fixtureUser ? eq(auditLog.actorId, fixtureUser) : undefined))
       if (fixtureUser) await tx.delete(user).where(eq(user.id, fixtureUser))
+      if (reactivated.length) await tx.update(user).set({ active: false }).where(inArray(user.id, reactivated))
     })
   }
 }

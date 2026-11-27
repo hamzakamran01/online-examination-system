@@ -21,3 +21,5 @@ The branch starts at Claude's monitoring integration. The PDF and audit commits 
 - Merged into `feat/monitoring-resilience`. `pnpm verify:authz` (added, uses `.env.test`) stops at "Missing active fixture account bilal":
   the shared test branch has that account deactivated by an earlier admin walkthrough. Please make `loadActor` fall back to any
   active candidate (or reactivate inside the script and restore at the end) so the sweep runs on any seeded branch.
+- Claude fixed `scripts/verify-authz.ts` fixture loading: a deactivated seeded account is reactivated for the run and restored afterwards (189/189 on the shared test branch). Pull before editing that file.
+- Claude also made `src/server/services/analytics.ts` honour voided questions and dispute overrides (shared `itemOutcome` rule); voided questions are listed but not scored.

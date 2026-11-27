@@ -8,9 +8,13 @@ export const DISPUTE_WINDOW_DAYS = 7
 export const DISPUTE_WINDOW_MS = DISPUTE_WINDOW_DAYS * 24 * 3_600_000
 /** At most this many disputes per attempt: enough for real problems, not a way to appeal everything. */
 export const MAX_DISPUTES_PER_ATTEMPT = 5
-/** A question is flagged as attracting disputes at this count, or at this share of submitted attempts. */
+/**
+ * A question is flagged as attracting disputes once two or more candidates dispute it.
+ * One dispute is a candidate's view; two independent ones are a pattern worth a second look.
+ * The share of papers is shown beside the flag as context, never as a trigger on its own
+ * (one dispute in a class of three would otherwise read as a third of the class).
+ */
 export const HOTSPOT_MIN_DISPUTES = 2
-export const HOTSPOT_MIN_RATE = 0.2
 
 export const DISPUTE_TYPES = ["grading_error", "ambiguous_question", "technical_incident"] as const
 export type DisputeType = (typeof DISPUTE_TYPES)[number]
@@ -51,6 +55,6 @@ export function disputeWindow(resultsPublishedAt: Date | null, now = new Date())
 }
 
 /** Whether a question's dispute volume deserves the examiner's attention. */
-export function isHotspot(disputes: number, finalizedAttempts: number) {
-  return disputes >= HOTSPOT_MIN_DISPUTES || (finalizedAttempts > 0 && disputes / finalizedAttempts >= HOTSPOT_MIN_RATE && disputes > 0)
+export function isHotspot(disputes: number) {
+  return disputes >= HOTSPOT_MIN_DISPUTES
 }

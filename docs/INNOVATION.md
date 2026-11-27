@@ -57,7 +57,7 @@ a mark in a spreadsheet, emailing a corrected PDF) leave no trail and leave old 
 | 4 | One rule for all | Voiding applies one policy (exclude from every paper, or full marks for all) to every paper that contains the question, recalculated in one transaction; other open disputes on it close with the same decision. |
 | 5 | No stale certificates | Any issued report whose score changes is marked Replaced at once; the public verify page says so and the new PDF gets a new code. |
 | 6 | Accountability | Raised, withdrawn, resolved, regraded and voided are all audited; regrades appear in the question's grading history. |
-| 7 | Quality signal | Questions with 2 or more disputes, or disputed on 20 percent of papers, are flagged on the Disputes tab. |
+| 7 | Quality signal | Questions disputed by 2 or more candidates are flagged on the Disputes tab, with the share of papers shown as context. |
 
 ## Trade-offs
 - Disputes open only after publication: before that, the examiner is still grading and a dispute has nothing to dispute.
