@@ -70,7 +70,7 @@ export default async function DisputeEvidencePage({ params }: PageProps<"/examin
               {q.voided && <Badge variant="warning">Voided for everyone</Badge>}
               {q.overridden && <Badge variant="outline">Mark changed after a dispute</Badge>}
               <span className="ml-auto font-medium tabular-nums">
-                {q.awarded === null ? "Not graded" : fmtMarks(q.awarded)} / {fmtMarks(q.item.marks)}
+                {q.voided === "exclude" ? "Not counted" : `${q.awarded === null ? "Not graded" : fmtMarks(q.awarded)} / ${fmtMarks(q.item.marks)}`}
               </span>
             </div>
             <p className="font-medium whitespace-pre-wrap">{q.item.stem}</p>

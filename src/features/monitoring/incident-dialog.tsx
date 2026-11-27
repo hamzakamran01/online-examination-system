@@ -216,8 +216,9 @@ export function IncidentDialog({
                   <span className="font-medium">
                     {eligible.length} candidate{eligible.length === 1 ? "" : "s"} will receive extra time
                   </span>{" "}
-                  ({dur(plan.totalSec)} in total). {plan.rows.length - eligible.length} other writing candidate
-                  {plan.rows.length - eligible.length === 1 ? "" : "s"} unaffected.
+                  ({dur(plan.totalSec)} in total).
+                  {plan.rows.length > eligible.length &&
+                    ` ${plan.rows.length - eligible.length} other writing candidate${plan.rows.length - eligible.length === 1 ? " is" : "s are"} not affected.`}
                   {plan.submittedSkipped > 0 && ` ${plan.submittedSkipped} already submitted.`}
                 </>
               ) : (
