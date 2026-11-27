@@ -13,11 +13,20 @@ import * as schema from "@/server/db/schema"
  * can never set them through the auth API.
  */
 /** Explicit URL first, then Vercel's system variables (production domain, then this deployment). */
+const https = (host?: string) => (host ? `https://${host}` : undefined)
 const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL
-const baseURL = process.env.BETTER_AUTH_URL || (vercelHost ? `https://${vercelHost}` : "http://localhost:3000")
-const trustedOrigins = [baseURL, process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}`, process.env.VERCEL_BRANCH_URL && `https://${process.env.VERCEL_BRANCH_URL}`].filter(
-  (o): o is string => Boolean(o)
-)
+// Normalize: "https://x.app/" and "https://x.app" must compare equal in the origin check.
+export const authBaseURL = (process.env.BETTER_AUTH_URL || https(vercelHost) || "http://localhost:3000").replace(/\/+$/, "")
+const baseURL = authBaseURL
+/** Only this project's own addresses may post to the auth API (CSRF origin check). */
+export const authTrustedOrigins = [
+  baseURL,
+  https(process.env.VERCEL_PROJECT_PRODUCTION_URL),
+  https(process.env.VERCEL_URL),
+  https(process.env.VERCEL_BRANCH_URL),
+  ...(process.env.NODE_ENV !== "production" ? ["http://localhost:3000", "http://127.0.0.1:3000"] : []),
+].filter((o, i, all): o is string => Boolean(o) && all.indexOf(o) === i)
+const trustedOrigins = authTrustedOrigins
 
 export const auth = betterAuth({
   appName: "ExamVault",

@@ -25,14 +25,21 @@ export function LoginForm({ next }: { next?: string }) {
 
   const onSubmit = form.handleSubmit(async (values) => {
     setError(null)
-    const { error: err } = await authClient.signIn.email(values)
+    const { error: err } = await authClient.signIn.email(values).catch(() => ({ error: { status: 0, code: "NETWORK" } as { status: number; code?: string } }))
     if (err) {
+      const code = (err as { code?: string }).code
       setError(
-        err.status === 429
-          ? "Too many attempts. Wait a minute and try again."
-          : err.status === 401 || err.status === 403
-            ? "Email or password is incorrect, or the account is deactivated."
-            : "We could not sign you in. Check your connection and try again."
+        err.status === 0
+          ? "No connection to the server. Check your internet and try again."
+          : err.status === 429
+            ? "Too many attempts. Wait a minute and try again."
+            : code === "INVALID_ORIGIN"
+              ? "This address is not allowed to sign in. Open the app from its main URL and try again."
+              : code === "FAILED_TO_CREATE_SESSION"
+                ? "This account is deactivated. Contact your administrator."
+                : code === "INVALID_EMAIL_OR_PASSWORD" || err.status === 401
+                  ? "Email or password is incorrect."
+                  : `We could not sign you in (error ${err.status}${code ? ` ${code}` : ""}). Try again shortly.`
       )
       return
     }
