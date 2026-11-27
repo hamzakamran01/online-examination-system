@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { AlertTriangle, CheckCircle2, CloudOff, Flag, Loader2, RefreshCw } from "lucide-react"
+import { AlertTriangle, CheckCircle2, CloudOff, Flag, Loader2, RefreshCw, Undo2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Textarea } from "@/components/ui/textarea"
 import { fmtMarks } from "@/lib/format"
@@ -166,6 +166,8 @@ export function QuestionView({
   disabled,
   onAnswer,
   headingRef,
+  eliminated,
+  onEliminate,
 }: {
   item: PaperItem
   index: number
@@ -174,6 +176,9 @@ export function QuestionView({
   disabled: boolean
   onAnswer: (r: AnswerResponse | null) => void
   headingRef?: React.Ref<HTMLHeadingElement>
+  /** Options the candidate has ruled out (answer eliminator). Visual aid only, never sent to the server. */
+  eliminated?: Set<string>
+  onEliminate?: (optionId: string) => void
 }) {
   const selected = entry?.response?.kind === "choice" ? entry.response.selected : []
   const text = entry?.response?.kind === "text" ? entry.response.text : ""
@@ -223,12 +228,14 @@ export function QuestionView({
               {item.options.map((o, oi) => {
                 const checked = selected.includes(o.id)
                 const letter = String.fromCharCode(65 + oi)
+                const out = !!eliminated?.has(o.id) && !checked
                 return (
-                  <li key={o.id}>
+                  <li key={o.id} className="group/opt flex items-stretch gap-2">
                     <label
                       className={cn(
-                        "flex min-h-14 cursor-pointer items-center gap-4 rounded-lg border px-4 py-3 transition-colors duration-150 has-focus-visible:ring-2 has-focus-visible:ring-ring",
-                        checked ? "border-primary bg-brand-softer" : "hover:border-border-strong hover:bg-muted/50"
+                        "flex min-h-14 flex-1 cursor-pointer items-center gap-4 rounded-lg border px-4 py-3 transition-colors duration-150 has-focus-visible:ring-2 has-focus-visible:ring-ring",
+                        checked ? "border-primary bg-brand-softer" : "hover:border-border-strong hover:bg-muted/50",
+                        out && "border-dashed opacity-60"
                       )}
                     >
                       <input
@@ -251,8 +258,23 @@ export function QuestionView({
                       >
                         {letter}
                       </span>
-                      <span className="flex-1 leading-relaxed">{o.text}</span>
+                      <span className={cn("flex-1 leading-relaxed", out && "text-muted-foreground line-through decoration-2")}>{o.text}</span>
                     </label>
+                    {onEliminate && !disabled && (
+                      <button
+                        type="button"
+                        onClick={() => onEliminate(o.id)}
+                        aria-pressed={out}
+                        aria-label={out ? `Bring back option ${letter}` : `Rule out option ${letter}`}
+                        title={out ? "Bring back" : "Rule out this option"}
+                        className={cn(
+                          "grid w-10 shrink-0 place-items-center rounded-lg border text-muted-foreground transition-opacity duration-150 hover:bg-muted hover:text-foreground focus-visible:opacity-100",
+                          out ? "opacity-100" : "opacity-100 sm:opacity-0 sm:group-hover/opt:opacity-100"
+                        )}
+                      >
+                        {out ? <Undo2 className="size-4" /> : <X className="size-4" />}
+                      </button>
+                    )}
                   </li>
                 )
               })}

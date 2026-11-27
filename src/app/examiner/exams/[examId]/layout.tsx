@@ -22,7 +22,7 @@ export default async function ExamLayout({ children, params }: LayoutProps<"/exa
   return (
     <>
       <PageHeader
-        back={{ href: "/examiner", label: "Exams" }}
+        back={{ href: "/examiner/exams", label: "Exams" }}
         eyebrow={<Lifecycle stage={stageOf(status, Boolean(exam.resultsPublishedAt))} />}
         title={exam.title}
         description={

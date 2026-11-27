@@ -28,7 +28,7 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
 })
 
 export const homeFor = (role: Role) =>
-  role === "admin" ? "/admin" : role === "examiner" ? "/examiner" : "/candidate"
+  role === "admin" ? "/admin/overview" : role === "examiner" ? "/examiner" : "/candidate"
 
 /** For pages: redirect to login or to the user's own home when the role does not match. */
 export async function requirePageRole(...roles: Role[]): Promise<SessionUser> {

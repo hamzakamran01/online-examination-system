@@ -1,174 +1,330 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { AlertCircle, ArrowUpRight, CalendarClock, FilePlus2, PenLine, Radio, Users } from "lucide-react"
+import { ArrowRight, BookOpenCheck, CalendarDays, CheckCircle2, FilePlus2, FileUp, PenLine, Radio, Send, SquarePen, Timer, UserPlus } from "lucide-react"
 import { requirePageRole } from "@/server/auth/guards"
-import { listManagedExams } from "@/server/services/exams"
-import { MetricStrip, PageHeader, Stat } from "@/components/shell/page-header"
-import { buttonVariants } from "@/components/ui/button"
-import { fmtDateTime, fmtDuration, fmtMarks } from "@/lib/format"
+import { getExaminerDashboard } from "@/server/services/dashboard"
+import { Panel, PanelHeader } from "@/components/shell/page-header"
+import { HeroBand, greeting, heroPrimary, heroSecondary } from "@/components/shell/hero"
+import { MiniBars } from "@/components/shell/mini-bars"
+import { fmtDateTime, fmtDuration } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
-export const metadata: Metadata = { title: "Exams" }
+export const metadata: Metadata = { title: "Examiner desk" }
 
-type Exam = Awaited<ReturnType<typeof listManagedExams>>[number]
-type Stage = Exam["stage"]
+type Dash = Awaited<ReturnType<typeof getExaminerDashboard>>
 
-const STAGES: { key: Stage; title: string; empty: string }[] = [
-  { key: "draft", title: "Draft", empty: "No drafts." },
-  { key: "scheduled", title: "Scheduled", empty: "Nothing waiting to open." },
-  { key: "live", title: "Live", empty: "No exam is open right now." },
-  { key: "grading", title: "Grading", empty: "Nothing to grade." },
-  { key: "released", title: "Results out", empty: "No results published yet." },
-]
-
-const DOT: Record<Stage, string> = {
-  draft: "bg-subtle-foreground",
-  scheduled: "bg-info",
-  live: "bg-success",
-  grading: "bg-time",
-  released: "bg-primary",
+const STAGE: Record<Dash["live"][number]["stage"], { label: string; cls: string }> = {
+  draft: { label: "Draft", cls: "bg-muted text-muted-foreground" },
+  scheduled: { label: "Scheduled", cls: "bg-info-soft text-info-text" },
+  live: { label: "Live", cls: "bg-success-soft text-success-text" },
+  grading: { label: "Grading", cls: "bg-time-soft text-time-text" },
+  released: { label: "Results out", cls: "bg-brand-soft text-brand-text" },
 }
 
-function nextStep(e: Exam): { label: string; href: string } {
-  const base = `/examiner/exams/${e.id}`
-  if (e.stage === "draft") return e.questionCount ? { label: "Review and publish", href: `${base}/review` } : { label: "Add questions", href: `${base}/questions` }
-  if (e.stage === "scheduled") return e.enrolledCount ? { label: "Check candidates", href: `${base}/candidates` } : { label: "Enroll candidates", href: `${base}/candidates` }
-  if (e.stage === "live") return { label: "Open results", href: `${base}/results` }
-  if (e.stage === "grading") return e.toGradeCount ? { label: `Grade ${e.toGradeCount}`, href: `${base}/results` } : { label: "Publish results", href: `${base}/results` }
-  return { label: "See analytics", href: `${base}/analytics` }
+const TODO_ICON = { grade: PenLine, publish: Send, enroll: UserPlus, draft: SquarePen } as const
+
+function minutesLeft(end: Date, now: Date) {
+  const m = Math.max(0, Math.round((end.getTime() - now.getTime()) / 60000))
+  return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`
 }
 
-function ExamCard({ e }: { e: Exam }) {
-  const step = nextStep(e)
-  const pct = Math.round(e.windowProgress * 100)
+function LiveExam({ e, now }: { e: Dash["live"][number]; now: Date }) {
+  const n = Math.max(1, e.enrolledCount)
+  const done = (e.submittedCount / n) * 100
+  const writing = (e.activeCount / n) * 100
   return (
-    <li className="relative rounded-lg border bg-surface p-3.5 transition-colors hover:border-border-strong">
-      <Link href={`/examiner/exams/${e.id}`} className="block text-sm leading-snug font-medium after:absolute after:inset-0 after:content-['']">
-        {e.title}
-      </Link>
-      <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-        <CalendarClock className="size-3.5 shrink-0" aria-hidden />
-        <span className="truncate">{fmtDateTime(e.startsAt)}</span>
-      </p>
-      {e.stage === "live" && (
-        <div className="mt-3">
-          <div className="h-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Exam window elapsed" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
-            <div className="h-full rounded-full bg-success" style={{ width: `${pct}%` }} />
-          </div>
-          <p className="mt-1.5 text-xs text-muted-foreground">
-            <span className="font-medium text-success-text">{e.activeCount} writing</span> · {e.submittedCount} of {e.enrolledCount} submitted
+    <li className="px-5 py-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <Link href={`/examiner/exams/${e.id}/results`} className="font-medium hover:underline">
+            {e.title}
+          </Link>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Window closes in <span className="font-medium text-foreground">{minutesLeft(e.endsAt, now)}</span> · {fmtDuration(e.durationMin)} per attempt
           </p>
         </div>
-      )}
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        <span>{fmtDuration(e.durationMin)}</span>
-        <span>{e.questionCount} questions</span>
-        <span>{fmtMarks(e.totalMarks)} marks</span>
-        <span className="inline-flex items-center gap-1">
-          <Users className="size-3" aria-hidden />
-          <span className="sr-only">Enrolled:</span>
-          {e.enrolledCount}
-        </span>
+        <Link href={`/examiner/exams/${e.id}/results`} className="inline-flex items-center gap-1 text-sm font-medium text-brand-text hover:underline">
+          Open
+          <ArrowRight className="size-3.5" aria-hidden />
+        </Link>
       </div>
-      <Link href={step.href} className="relative z-10 mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand-text hover:underline">
-        {step.label}
-        <ArrowUpRight className="size-3" aria-hidden />
-      </Link>
+      <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-muted" role="img" aria-label={`${e.submittedCount} submitted, ${e.activeCount} writing, of ${e.enrolledCount} enrolled`}>
+        <span className="h-full bg-primary" style={{ width: `${done}%` }} />
+        <span className="h-full bg-success" style={{ width: `${writing}%` }} />
+      </div>
+      <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2 rounded-full bg-primary" aria-hidden />
+          {e.submittedCount} submitted
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2 rounded-full bg-success" aria-hidden />
+          {e.activeCount} writing
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2 rounded-full bg-muted-foreground/40" aria-hidden />
+          {Math.max(0, e.enrolledCount - e.submittedCount - e.activeCount)} not started
+        </span>
+      </p>
     </li>
   )
 }
 
 export default async function ExaminerHome() {
   const actor = await requirePageRole("examiner")
-  const exams = await listManagedExams(actor)
-  const by = (s: Stage) => exams.filter((e) => e.stage === s)
-  const writing = exams.reduce((n, e) => n + e.activeCount, 0)
-  const toGrade = exams.reduce((n, e) => n + e.toGradeCount, 0)
+  const d = await getExaminerDashboard(actor)
+  const first = actor.name.replace(/^(Dr|Mr|Ms|Mrs|Prof)\.?\s+/i, "").split(" ")[0]
+  const honorific = /^(Dr|Prof)\.?\s/i.test(actor.name) ? actor.name.split(" ")[0].replace(".", "") + ". " : ""
 
-  const attention = [
-    ...exams
-      .filter((e) => e.stage === "grading" && e.toGradeCount > 0)
-      .map((e) => ({ e, text: `${e.toGradeCount} attempt${e.toGradeCount === 1 ? "" : "s"} waiting for marks`, href: `/examiner/exams/${e.id}/results`, icon: PenLine })),
-    ...exams
-      .filter((e) => e.stage === "grading" && e.toGradeCount === 0 && e.submittedCount > 0)
-      .map((e) => ({ e, text: "Fully graded, ready to publish results", href: `/examiner/exams/${e.id}/results`, icon: PenLine })),
-    ...exams
-      .filter((e) => e.stage === "scheduled" && e.enrolledCount === 0)
-      .map((e) => ({ e, text: "Scheduled with nobody enrolled", href: `/examiner/exams/${e.id}/candidates`, icon: Users })),
-    ...exams
-      .filter((e) => e.stage === "draft" && e.questionCount === 0)
-      .map((e) => ({ e, text: "Draft has no questions yet", href: `/examiner/exams/${e.id}/questions`, icon: AlertCircle })),
-  ]
+  const summary =
+    d.counts.live > 0
+      ? `${d.counts.live} exam${d.counts.live === 1 ? " is" : "s are"} live with ${d.counts.writing} candidate${d.counts.writing === 1 ? "" : "s"} writing.${d.counts.toGrade ? ` ${d.counts.toGrade} attempt${d.counts.toGrade === 1 ? "" : "s"} wait for your marks.` : ""}`
+      : d.todo.length
+        ? `No exam is live right now. You have ${d.todo.length} item${d.todo.length === 1 ? "" : "s"} on your list.`
+        : "No exam is live right now and your list is clear."
 
   return (
     <>
-      <PageHeader
-        title="Examinations"
-        description="Every exam you own, arranged by lifecycle. Each card points to its next step."
+      <HeroBand
+        kicker={`${greeting(d.now)}, ${honorific}${first}`}
+        title="Examiner desk"
+        summary={summary}
         actions={
-          <Link href="/examiner/exams/new" className={buttonVariants()}>
-            <FilePlus2 />
-            New exam
-          </Link>
+          <>
+            <Link href="/examiner/exams/new" className={heroPrimary}>
+              <FilePlus2 />
+              New exam
+            </Link>
+            <Link href="/examiner/bank/new" className={heroSecondary}>
+              <SquarePen />
+              Write a question
+            </Link>
+            <Link href="/examiner/imports" className={heroSecondary}>
+              <FileUp />
+              Import
+            </Link>
+          </>
         }
+        metrics={[
+          { label: "Live now", value: d.counts.live, hint: `${d.counts.writing} writing` },
+          { label: "To grade", value: d.counts.toGrade, hint: "Written attempts" },
+          { label: "Scheduled", value: d.counts.scheduled, hint: "Within two weeks shown below" },
+          { label: "Average score", value: d.counts.avgScore === null ? "No data" : `${d.counts.avgScore}%`, hint: "Across graded exams" },
+        ]}
       />
 
-      <MetricStrip className="mb-6">
-        <Stat label="Live now" value={by("live").length} tone={by("live").length ? "success" : undefined} hint={by("live").length ? "Window open" : "No open windows"} />
-        <Stat label="Candidates writing" value={writing} hint="Active attempts across exams" />
-        <Stat label="Attempts to grade" value={toGrade} tone={toGrade ? "time" : undefined} hint="Written answers awaiting marks" />
-        <Stat label="Scheduled" value={by("scheduled").length} hint="Published, not yet open" />
-      </MetricStrip>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="flex flex-col gap-6 lg:col-span-2">
+          <Panel>
+            <PanelHeader
+              title={
+                <span className="inline-flex items-center gap-2">
+                  <Radio className={cn("size-4", d.live.length ? "text-success-text" : "text-muted-foreground")} aria-hidden />
+                  Live now
+                </span>
+              }
+              description={d.live.length ? "Submission progress against enrolment, updated on every visit." : undefined}
+            />
+            {d.live.length ? (
+              <ul className="divide-y">
+                {d.live.map((e) => (
+                  <LiveExam key={e.id} e={e} now={d.now} />
+                ))}
+              </ul>
+            ) : (
+              <p className="px-5 py-8 text-center text-sm text-muted-foreground">No exam window is open. Scheduled exams appear here the moment they open.</p>
+            )}
+          </Panel>
 
-      {attention.length > 0 && (
-        <section aria-labelledby="attn" className="mb-6 rounded-xl border bg-surface">
-          <h2 id="attn" className="flex items-center gap-2 border-b px-5 py-3 text-sm font-semibold">
-            <Radio className="size-4 text-time-text" aria-hidden />
-            Needs your attention
-            <span className="rounded-full bg-time-soft px-2 text-xs font-medium text-time-text tabular-nums">{attention.length}</span>
-          </h2>
-          <ul className="divide-y">
-            {attention.slice(0, 5).map(({ e, text, href, icon: Icon }) => (
-              <li key={e.id + text}>
-                <Link href={href} className="flex items-center gap-3 px-5 py-3 text-sm transition-colors hover:bg-muted/60">
-                  <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  <span className="min-w-0 flex-1">
-                    <span className="font-medium">{e.title}</span>
-                    <span className="text-muted-foreground"> · {text}</span>
-                  </span>
-                  <ArrowUpRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+          <Panel>
+            <PanelHeader
+              title={
+                <span className="inline-flex items-center gap-2">
+                  <CalendarDays className="size-4 text-muted-foreground" aria-hidden />
+                  Next two weeks
+                </span>
+              }
+            />
+            {d.upcoming.length ? (
+              <ol className="divide-y">
+                {d.upcoming.map((e) => (
+                  <li key={e.id}>
+                    <Link href={`/examiner/exams/${e.id}`} className="flex items-center gap-4 px-5 py-3 transition-colors hover:bg-muted/50">
+                      <span className="flex w-14 shrink-0 flex-col items-center rounded-lg border py-1.5 leading-none">
+                        <span className="text-[0.65rem] font-medium text-muted-foreground uppercase">{e.startsAt.toLocaleDateString("en-GB", { month: "short", timeZone: process.env.APP_TIMEZONE ?? "Asia/Karachi" })}</span>
+                        <span className="font-display mt-1 text-xl font-semibold">{e.startsAt.toLocaleDateString("en-GB", { day: "numeric", timeZone: process.env.APP_TIMEZONE ?? "Asia/Karachi" })}</span>
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium">{e.title}</span>
+                        <span className="text-xs text-muted-foreground">
+                          Opens {fmtDateTime(e.startsAt)} · {fmtDuration(e.durationMin)} · {e.enrolledCount} enrolled
+                        </span>
+                      </span>
+                      {e.enrolledCount === 0 && <span className="shrink-0 rounded-full bg-time-soft px-2 py-0.5 text-xs font-medium text-time-text">No candidates</span>}
+                    </Link>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="px-5 py-8 text-center text-sm text-muted-foreground">Nothing scheduled in the next two weeks.</p>
+            )}
+          </Panel>
 
-      <section aria-label="Exam lifecycle board" className="-mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-        <div className="grid min-w-[1000px] grid-cols-5 gap-3">
-          {STAGES.map((s) => {
-            const list = by(s.key)
-            return (
-              <div key={s.key} className="flex flex-col rounded-xl border bg-surface-sunken p-2">
-                <h2 className="flex items-center gap-2 px-1.5 pt-1 pb-2.5 text-sm font-semibold">
-                  <span className={cn("size-2 rounded-full", DOT[s.key], s.key === "live" && list.length > 0 && "animate-live text-success")} aria-hidden />
-                  {s.title}
-                  <span className="ml-auto text-xs font-normal text-muted-foreground tabular-nums">{list.length}</span>
-                </h2>
-                {list.length ? (
-                  <ul className="flex flex-col gap-2">
-                    {list.map((e) => (
-                      <ExamCard key={e.id} e={e} />
+          <Panel>
+            <PanelHeader title="Recent results" description="Average score and grading state of exams whose window has closed." />
+            {d.recent.length ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-xs text-muted-foreground">
+                      <th className="px-5 py-2.5 font-medium">Exam</th>
+                      <th className="px-3 py-2.5 font-medium">Submitted</th>
+                      <th className="px-3 py-2.5 font-medium">Average</th>
+                      <th className="px-5 py-2.5 text-right font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {d.recent.map((e) => (
+                      <tr key={e.id} className="transition-colors hover:bg-muted/40">
+                        <td className="px-5 py-3">
+                          <Link href={`/examiner/exams/${e.id}/results`} className="font-medium hover:underline">
+                            {e.title}
+                          </Link>
+                        </td>
+                        <td className="px-3 py-3 text-muted-foreground tabular-nums">
+                          {e.submittedCount} / {e.enrolledCount}
+                        </td>
+                        <td className="px-3 py-3">
+                          {e.avgPercent === null ? (
+                            <span className="text-muted-foreground">-</span>
+                          ) : (
+                            <span className="flex items-center gap-2">
+                              <span className="h-1.5 w-16 overflow-hidden rounded-full bg-muted" aria-hidden>
+                                <span className="block h-full rounded-full bg-primary" style={{ width: `${e.avgPercent}%` }} />
+                              </span>
+                              <span className="tabular-nums">{e.avgPercent}%</span>
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-5 py-3 text-right">
+                          <span className={cn("inline-flex rounded-full px-2 py-0.5 text-xs font-medium", STAGE[e.stage].cls)}>
+                            {e.stage === "grading" && e.toGradeCount ? `${e.toGradeCount} to grade` : STAGE[e.stage].label}
+                          </span>
+                        </td>
+                      </tr>
                     ))}
-                  </ul>
-                ) : (
-                  <p className="rounded-lg border border-dashed px-3 py-6 text-center text-xs text-muted-foreground">{s.empty}</p>
-                )}
+                  </tbody>
+                </table>
               </div>
-            )
-          })}
+            ) : (
+              <p className="px-5 py-8 text-center text-sm text-muted-foreground">Results appear here after an exam window closes.</p>
+            )}
+          </Panel>
         </div>
-      </section>
+
+        <div className="flex flex-col gap-6">
+          <Panel>
+            <PanelHeader title="Your list" description={d.todo.length ? `${d.todo.length} item${d.todo.length === 1 ? "" : "s"}, most urgent first` : undefined} />
+            {d.todo.length ? (
+              <ul className="divide-y">
+                {d.todo.slice(0, 7).map((t) => {
+                  const Icon = TODO_ICON[t.kind]
+                  return (
+                    <li key={t.id}>
+                      <Link href={t.href} className="flex items-start gap-3 px-5 py-3 transition-colors hover:bg-muted/50">
+                        <span
+                          className={cn(
+                            "mt-0.5 grid size-7 shrink-0 place-items-center rounded-md",
+                            t.kind === "grade" ? "bg-time-soft text-time-text" : t.kind === "publish" ? "bg-brand-soft text-brand-text" : "bg-muted text-muted-foreground"
+                          )}
+                          aria-hidden
+                        >
+                          <Icon className="size-3.5" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium">{t.title}</span>
+                          <span className="text-xs text-muted-foreground">{t.detail}</span>
+                        </span>
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : (
+              <p className="flex items-center gap-2 px-5 py-6 text-sm text-muted-foreground">
+                <CheckCircle2 className="size-4 text-success-text" aria-hidden />
+                All caught up.
+              </p>
+            )}
+          </Panel>
+
+          <Panel>
+            <PanelHeader title="Submissions" description={`${d.counts.submitted14} in the last 14 days`} />
+            <div className="px-4 pt-3 pb-2">
+              <MiniBars data={d.activity} label="Submissions per day" />
+            </div>
+          </Panel>
+
+          <Panel>
+            <PanelHeader
+              title={
+                <span className="inline-flex items-center gap-2">
+                  <BookOpenCheck className="size-4 text-muted-foreground" aria-hidden />
+                  Question bank
+                </span>
+              }
+              actions={
+                <Link href="/examiner/bank" className="text-sm font-medium text-brand-text hover:underline">
+                  Open
+                </Link>
+              }
+            />
+            <div className="flex flex-col gap-4 p-5">
+              <p className="font-display text-3xl font-semibold tabular-nums">
+                {d.bank.total} <span className="font-sans text-sm font-normal text-muted-foreground">active questions</span>
+              </p>
+              <div>
+                <p className="mb-1.5 text-xs text-muted-foreground">By difficulty</p>
+                <div className="flex h-2 overflow-hidden rounded-full bg-muted" role="img" aria-label={d.bank.byDifficulty.map((x) => `${x.n} ${x.key}`).join(", ")}>
+                  {d.bank.byDifficulty.map((x) => (
+                    <span key={x.key} className={cn("h-full", x.key === "easy" ? "bg-success" : x.key === "medium" ? "bg-time" : "bg-danger")} style={{ width: `${d.bank.total ? (x.n / d.bank.total) * 100 : 0}%` }} />
+                  ))}
+                </div>
+                <p className="mt-1.5 flex gap-3 text-xs text-muted-foreground">
+                  {d.bank.byDifficulty.map((x) => (
+                    <span key={x.key} className="capitalize">
+                      {x.key} {x.n}
+                    </span>
+                  ))}
+                </p>
+              </div>
+              <dl className="grid grid-cols-3 gap-px overflow-hidden rounded-lg border bg-border text-center">
+                {d.bank.byType.map((x) => (
+                  <div key={x.key} className="bg-surface px-2 py-2.5">
+                    <dt className="text-[0.7rem] text-muted-foreground">{x.key === "single" ? "Single" : x.key === "multi" ? "Multi" : "Written"}</dt>
+                    <dd className="font-medium tabular-nums">{x.n}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          </Panel>
+        </div>
+      </div>
+
+      <AllExams exams={[...d.live, ...d.upcoming, ...d.recent]} total={d.total} />
     </>
+  )
+}
+
+function AllExams({ exams, total }: { exams: Dash["live"]; total: number }) {
+  return (
+    <p className="mt-8 flex items-center gap-2 text-sm text-muted-foreground">
+      <Timer className="size-4" aria-hidden />
+      {total} exam{total === 1 ? "" : "s"} in total.{" "}
+      <Link href="/examiner/exams" className="font-medium text-brand-text hover:underline">
+        Browse every exam by stage
+      </Link>
+      {exams.length === 0 && null}
+    </p>
   )
 }

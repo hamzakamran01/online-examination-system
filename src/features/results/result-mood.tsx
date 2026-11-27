@@ -41,6 +41,12 @@ function AnimatedEmoji({ mood }: { mood: Mood }) {
   const e = EMOJI[mood]
   const base = `https://fonts.gstatic.com/s/e/notoemoji/latest/${e.code}`
   const [failed, setFailed] = React.useState(false)
+  // Play the animation once when the card opens, then settle on the still image.
+  const [still, setStill] = React.useState(false)
+  React.useEffect(() => {
+    const t = setTimeout(() => setStill(true), 2600)
+    return () => clearTimeout(t)
+  }, [])
   if (failed)
     return (
       <span role="img" aria-label={e.label} className="grid size-full place-items-center text-6xl leading-none">
@@ -50,7 +56,7 @@ function AnimatedEmoji({ mood }: { mood: Mood }) {
   return (
     <picture>
       <source srcSet={`${base}/emoji.svg`} media="(prefers-reduced-motion: reduce)" type="image/svg+xml" />
-      <source srcSet={`${base}/512.webp`} type="image/webp" />
+      {still ? <source srcSet={`${base}/emoji.svg`} type="image/svg+xml" /> : <source srcSet={`${base}/512.webp`} type="image/webp" />}
       <img
         src={`${base}/512.gif`}
         alt={e.label}
@@ -58,7 +64,7 @@ function AnimatedEmoji({ mood }: { mood: Mood }) {
         height={112}
         decoding="async"
         onError={() => setFailed(true)}
-        className="size-full object-contain drop-shadow-[0_8px_12px_rgb(0_0_0/0.2)]"
+        className="size-full object-contain drop-shadow-[0_4px_6px_rgb(0_0_0/0.16)]"
       />
     </picture>
   )
@@ -110,22 +116,22 @@ export function ResultMood({
 
   return (
     <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:gap-8">
-      <div className="relative size-40 shrink-0">
+      <div className="relative size-28 shrink-0">
         <svg viewBox="0 0 128 128" className="size-full -rotate-90" aria-hidden>
-          <circle cx="64" cy="64" r={R} fill="none" stroke="var(--muted)" strokeWidth="6" />
+          <circle cx="64" cy="64" r={R} fill="none" stroke="var(--muted)" strokeWidth="7" />
           <circle
             cx="64"
             cy="64"
             r={R}
             fill="none"
             stroke={c.ring}
-            strokeWidth="6"
+            strokeWidth="7"
             strokeLinecap="round"
             strokeDasharray={C}
             strokeDashoffset={C * (1 - Math.min(100, pct) / 100)}
           />
         </svg>
-        <div className="absolute inset-[16%]">
+        <div className="absolute inset-[26%]">
           <AnimatedEmoji mood={mood} />
         </div>
       </div>

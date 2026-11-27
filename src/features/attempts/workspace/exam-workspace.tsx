@@ -75,6 +75,7 @@ export function ExamWorkspace({ view, preferences }: { view: AttemptView; prefer
     () => new Set([...(items[0] ? [items[0].itemId] : []), ...Object.keys(view.answers)])
   )
   const [mode, setMode] = React.useState<"question" | "review">("question")
+  const [reviewFilter, setReviewFilter] = React.useState<"all" | "unanswered" | "flagged">("all")
   const [paletteOpen, setPaletteOpen] = React.useState(false)
   const [prefsOpen, setPrefsOpen] = React.useState(false)
   const [confirmOpen, setConfirmOpen] = React.useState(false)
@@ -84,6 +85,31 @@ export function ExamWorkspace({ view, preferences }: { view: AttemptView; prefer
   const headingRef = React.useRef<HTMLHeadingElement>(null)
   const expiredRef = React.useRef(false)
   const totalMs = Math.max(1, Date.parse(view.deadlineAt) - Date.parse(view.startedAt))
+  // Answer eliminator (TAO-style): ruled-out options, kept only on this device.
+  const elimKey = `ev:elim:${view.id}`
+  const [eliminated, setEliminated] = React.useState<Record<string, string[]>>({})
+  React.useEffect(() => {
+    try {
+      const raw = localStorage.getItem(elimKey)
+      if (raw) queueMicrotask(() => setEliminated(JSON.parse(raw)))
+    } catch {
+      /* storage blocked: eliminator still works in memory */
+    }
+  }, [elimKey])
+  const toggleEliminate = (itemId: string, optionId: string) =>
+    setEliminated((prev) => {
+      const cur = new Set(prev[itemId] ?? [])
+      if (cur.has(optionId)) cur.delete(optionId)
+      else cur.add(optionId)
+      const next = { ...prev, [itemId]: [...cur] }
+      try {
+        localStorage.setItem(elimKey, JSON.stringify(next))
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
+  const elimFor = (itemId: string) => new Set(eliminated[itemId] ?? [])
 
   const finish = React.useCallback(() => router.replace(`/attempt/${view.id}/done`), [router, view.id])
 
@@ -320,7 +346,7 @@ export function ExamWorkspace({ view, preferences }: { view: AttemptView; prefer
 
       <div
         className={cn(
-          "mx-auto grid max-w-[1240px] gap-6 px-4 py-6 sm:px-6 lg:py-8",
+          "mx-auto grid max-w-[1240px] gap-6 px-4 pt-6 pb-24 sm:px-6 lg:py-8",
           prefs.paletteSide === "left" ? "lg:grid-cols-[300px_minmax(0,1fr)]" : "lg:grid-cols-[minmax(0,1fr)_300px]"
         )}
       >
@@ -343,25 +369,69 @@ export function ExamWorkspace({ view, preferences }: { view: AttemptView; prefer
                   </div>
                 ))}
               </div>
-              {(
-                [
-                  ["Unanswered questions", unansweredIdx],
-                  ["Marked for review", flaggedIdx],
-                ] as const
-              ).map(([label, list]) =>
-                list.length ? (
-                  <div key={label} className="mt-6">
-                    <p className="mb-2 text-sm font-medium">{label}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {list.map((i) => (
-                        <Button key={i} variant="outline" size="sm" onClick={() => jump(i)}>
-                          Question {i + 1}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                ) : null
-              )}
+              <div role="tablist" aria-label="Filter questions" className="mt-6 flex flex-wrap gap-1.5">
+                {(
+                  [
+                    ["all", "All", items.length],
+                    ["unanswered", "Unanswered", unansweredIdx.length],
+                    ["flagged", "For review", flaggedIdx.length],
+                  ] as const
+                ).map(([key, label, n]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    role="tab"
+                    aria-selected={reviewFilter === key}
+                    onClick={() => setReviewFilter(key)}
+                    className={cn(
+                      "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors",
+                      reviewFilter === key ? "border-foreground bg-foreground text-background" : "hover:bg-muted"
+                    )}
+                  >
+                    {label}
+                    <span className="tabular-nums opacity-70">{n}</span>
+                  </button>
+                ))}
+              </div>
+              <ul className="mt-3 divide-y overflow-hidden rounded-lg border" role="tabpanel">
+                {items
+                  .map((it, i) => ({ it, i }))
+                  .filter(({ it, i }) =>
+                    reviewFilter === "all" ? true : reviewFilter === "unanswered" ? unansweredIdx.includes(i) : !!answers[it.itemId]?.flagged
+                  )
+                  .map(({ it, i }) => {
+                    const done = answered(answers[it.itemId]?.response)
+                    return (
+                      <li key={it.itemId}>
+                        <button type="button" onClick={() => jump(i)} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60">
+                          <span
+                            className={cn(
+                              "grid size-8 shrink-0 place-items-center rounded-md border text-sm font-medium tabular-nums",
+                              done ? "border-primary bg-primary text-primary-foreground" : "border-dashed border-border-strong text-muted-foreground"
+                            )}
+                            aria-hidden
+                          >
+                            {i + 1}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm">{it.stem}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {done ? "Answered" : "Not answered"}
+                              {answers[it.itemId]?.flagged ? " · marked for review" : ""}
+                            </span>
+                          </span>
+                          {answers[it.itemId]?.flagged && <Flag className="size-4 shrink-0 text-time-text" aria-hidden />}
+                          <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                        </button>
+                      </li>
+                    )
+                  })}
+                {reviewFilter !== "all" && (reviewFilter === "unanswered" ? unansweredIdx : flaggedIdx).length === 0 && (
+                  <li className="px-4 py-6 text-center text-sm text-muted-foreground">
+                    {reviewFilter === "unanswered" ? "Every question has an answer." : "No questions are marked for review."}
+                  </li>
+                )}
+              </ul>
               {pending > 0 && (
                 <p className="mt-6 rounded-lg bg-time-soft px-4 py-3 text-sm text-time-text">
                   {pending} answer{pending === 1 ? " is" : "s are"} still on this device only. Submitting sends them first.
@@ -388,6 +458,8 @@ export function ExamWorkspace({ view, preferences }: { view: AttemptView; prefer
                     total={items.length}
                     entry={answers[it.itemId]}
                     disabled={!!lockState}
+                    eliminated={elimFor(it.itemId)}
+                    onEliminate={(o) => toggleEliminate(it.itemId, o)}
                     onAnswer={(r) => {
                       setVisited((prev) => (prev.has(it.itemId) ? prev : new Set(prev).add(it.itemId)))
                       update(it.itemId, { response: r }, it.type === "written" ? 900 : 300)
@@ -410,15 +482,17 @@ export function ExamWorkspace({ view, preferences }: { view: AttemptView; prefer
                 entry={answers[item.itemId]}
                 disabled={!!lockState}
                 headingRef={headingRef}
+                eliminated={elimFor(item.itemId)}
+                onEliminate={(o) => toggleEliminate(item.itemId, o)}
                 onAnswer={(r) => update(item.itemId, { response: r }, item.type === "written" ? 900 : 300)}
               />
               <nav aria-label="Question navigation" className="mt-4 flex flex-wrap items-center gap-2">
-                <Button variant="outline" disabled={current === 0} onClick={() => jump(current - 1)}>
+                <Button variant="outline" className="hidden lg:inline-flex" disabled={current === 0} onClick={() => jump(current - 1)}>
                   <ChevronLeft />
                   Previous
                 </Button>
                 {flagButton(item.itemId)}
-                <div className="ml-auto">
+                <div className="ml-auto hidden lg:block">
                   {current < items.length - 1 ? (
                     <Button onClick={() => jump(current + 1)}>
                       Next question
@@ -440,6 +514,35 @@ export function ExamWorkspace({ view, preferences }: { view: AttemptView; prefer
           <div className="sticky top-24">{palette}</div>
         </aside>
       </div>
+
+      {mode === "question" && !scrollLayout && (
+        <nav
+          aria-label="Question navigation"
+          className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-2 border-t bg-surface/95 px-3 py-2.5 backdrop-blur-sm lg:hidden"
+          style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
+        >
+          <Button variant="outline" size="lg" className="h-11" disabled={current === 0} onClick={() => jump(current - 1)} aria-label="Previous question">
+            <ChevronLeft />
+          </Button>
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-medium"
+          >
+            <LayoutGrid className="size-4" aria-hidden />
+            Question {current + 1} of {items.length}
+          </button>
+          {current < items.length - 1 ? (
+            <Button size="lg" className="h-11" onClick={() => jump(current + 1)} aria-label="Next question">
+              <ChevronRight />
+            </Button>
+          ) : (
+            <Button size="lg" className="h-11" onClick={() => setMode("review")} disabled={!!lockState}>
+              Review
+            </Button>
+          )}
+        </nav>
+      )}
 
       <Sheet open={paletteOpen} onOpenChange={setPaletteOpen}>
         <SheetContent side="bottom" className="max-h-[88dvh] overflow-y-auto p-5">

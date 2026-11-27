@@ -494,7 +494,7 @@ export async function listCandidateExams(actor: SessionUser) {
         resultsPublishedAt: exams.resultsPublishedAt,
       },
       attempt: { id: attempts.id, status: attempts.status, deadlineAt: attempts.deadlineAt, submittedAt: attempts.submittedAt },
-      questionCount: sql<number>`(select count(*)::int from ${examQuestions} where ${examQuestions.examId} = ${exams.id})`,
+      questionCount: sql<number>`(select count(*)::int from exam_questions eq where eq.exam_id = "exams"."id")`,
     })
     .from(enrollments)
     .innerJoin(exams, eq(exams.id, enrollments.examId))
