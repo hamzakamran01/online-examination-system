@@ -1,0 +1,27 @@
+# dependencies
+/node_modules
+.pnp
+.pnp.*
+
+# next.js / build output
+/.next/
+/out/
+/build
+*.tsbuildinfo
+next-env.d.ts
+
+# env files (never commit secrets)
+.env*
+!.env.example
+
+# deploy / tooling
+.vercel
+/coverage
+*.pem
+.DS_Store
+npm-debug.log*
+pnpm-debug.log*
+
+# reference-only sister folders (source of copied UI, credited in README)
+/starter/
+/patternvault/
