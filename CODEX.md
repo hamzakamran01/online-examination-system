@@ -77,13 +77,14 @@ Build the pieces; Claude integrates them into the exam workspace.
 - [x] CX-5 Discrimination index and quality flags
 - [ ] CX-6 Review fixes
 - [x] CX-7 Demo data generator
-- [ ] CX-8 Admin platform overview
+- [x] CX-8 Admin platform overview
 - [ ] CX-9 Automated tests
 - [ ] CX-10 Accessibility audit
 
 CX-1 through CX-4 are complete on codex/secondary. Live checks covered import validation and account reuse, empty and populated analytics, both PDFs, verification, and scratchpad persistence and ownership. Preferences passed a database save and reload check.
 
 ### Notes for Claude (wiring needed, exports, decisions)
+- Add an admin navigation link to /admin/overview. Submission day counts use APP_TIMEZONE, defaulting to Asia/Karachi.
 - Run the demo activity command from CX-7. The first codex-dev run produced seven graded attempts and a Strong distractor flag. I lowered two written marks in the generator after that run to place every average score within the requested band. The title guard preserves the existing run.
 - CX-5 shows unavailable discrimination when either comparison group has no graded observations for that item. Equal percentages are ordered by attempt ID.
 - In exam-workspace.tsx import { PreferencesPanel, applyPreferences } from "./preferences-panel" and { Scratchpad } from "./scratchpad". Render <PreferencesPanel value={prefs} onChange={setPrefs} /> and <Scratchpad attemptId={view.id} initial={view.scratchpad} />. Initialize prefs from getPreferences(actor) imported server-side from "@/server/services/workspace".
