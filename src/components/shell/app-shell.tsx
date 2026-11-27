@@ -4,7 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
-import { BookOpenCheck, ClipboardList, FileClock, LayoutDashboard, LogOut, Menu, Moon, Sun, Users } from "lucide-react"
+import { BookOpenCheck, ClipboardList, FileClock, FileUp, LayoutDashboard, LogOut, Menu, Moon, Sun, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { authClient } from "@/lib/auth-client"
 import { Logo } from "./logo"
@@ -22,6 +22,7 @@ const NAV: Record<Role, NavItem[]> = {
   examiner: [
     { href: "/examiner", label: "Exams", icon: LayoutDashboard, exact: true },
     { href: "/examiner/bank", label: "Question bank", icon: BookOpenCheck },
+    { href: "/examiner/imports", label: "Bulk import", icon: FileUp },
   ],
   candidate: [{ href: "/candidate", label: "My exams", icon: ClipboardList, exact: true }],
 }

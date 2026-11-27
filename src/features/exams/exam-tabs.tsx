@@ -12,6 +12,7 @@ export function ExamTabs({ examId }: { examId: string }) {
     { href: `${base}/questions`, label: "Questions" },
     { href: `${base}/candidates`, label: "Candidates" },
     { href: `${base}/review`, label: "Review and publish" },
+    { href: `${base}/analytics`, label: "Analytics" },
   ]
   return (
     <nav aria-label="Exam sections" className="-mx-4 overflow-x-auto border-b px-4 sm:mx-0 sm:px-0">
