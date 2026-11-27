@@ -140,7 +140,7 @@ export class SyncEngine {
     }
     this.inflight = true
     this.setState(this.failures ? "retrying" : "saving")
-    const sentAt = Date.now()
+    const sentAt = performance.now()
     try {
       const res = await fetch(`/api/attempts/${this.attemptId}/answers`, {
         method: "PUT",
@@ -154,7 +154,7 @@ export class SyncEngine {
         for (const a of body.acked as { itemId: string; seq: number }[])
           if (this.pending[a.itemId]?.seq === a.seq) delete this.pending[a.itemId]
         store.set(this.key("journal"), this.pending)
-        this.onServerTime(Date.parse(body.serverNow) + (Date.now() - sentAt) / 2, Date.parse(body.deadlineAt))
+        this.onServerTime(Date.parse(body.serverNow) + (performance.now() - sentAt) / 2, Date.parse(body.deadlineAt))
         this.failures = 0
         this.lastSyncedAt = Date.now()
         if (this.pendingCount) return this.flush()

@@ -50,15 +50,17 @@ const TYPE_HINT = { single: "Select one answer", multi: "Select all that apply",
  * time between server readings; it never decides the deadline.
  * ------------------------------------------------------------------------- */
 function useServerClock(initialServerNow: string, initialDeadline: string) {
-  const [offset, setOffset] = React.useState(() => Date.parse(initialServerNow) - Date.now())
+  // Sync point = a server timestamp paired with a performance.now() reading.
+  // performance.now() is monotonic: changing the device date or time cannot move it.
+  const [point, setPoint] = React.useState(() => ({ server: Date.parse(initialServerNow), mono: performance.now() }))
   const [deadline, setDeadline] = React.useState(() => Date.parse(initialDeadline))
-  const [now, setNow] = React.useState(() => Date.now() + offset)
+  const [now, setNow] = React.useState(() => Date.parse(initialServerNow))
   React.useEffect(() => {
-    const t = setInterval(() => setNow(Date.now() + offset), 250)
+    const t = setInterval(() => setNow(point.server + (performance.now() - point.mono)), 250)
     return () => clearInterval(t)
-  }, [offset])
+  }, [point])
   const sync = React.useCallback((serverNow: number, dl: number) => {
-    setOffset(serverNow - Date.now())
+    setPoint({ server: serverNow, mono: performance.now() })
     setDeadline(dl)
   }, [])
   return { remaining: deadline - now, sync }
@@ -304,12 +306,21 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
     }
     engine.dropStale(serverSeqs)
     void engine.flush()
-    // Fresh server time reading so the countdown is exact after hydration.
-    const t0 = Date.now()
-    fetch(`/api/attempts/${view.id}`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((v) => v && sync(Date.parse(v.serverNow) + (Date.now() - t0) / 2, Date.parse(v.deadlineAt)))
-      .catch(() => {})
+    // Fresh server time reading (after hydration, and whenever the tab regains focus).
+    const resync = () => {
+      const t0 = performance.now()
+      fetch(`/api/attempts/${view.id}`, { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((v) => {
+          if (!v) return
+          sync(Date.parse(v.serverNow) + (performance.now() - t0) / 2, Date.parse(v.deadlineAt))
+          if (v.status !== "in_progress") finish()
+        })
+        .catch(() => {})
+    }
+    resync()
+    const onVisible = () => document.visibilityState === "visible" && resync()
+    document.addEventListener("visibilitychange", onVisible)
     const online = () => {
       toast.success("Back online. Syncing your answers.")
       void engine.flush()
@@ -325,6 +336,7 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
       clearInterval(poll)
       window.removeEventListener("online", online)
       window.removeEventListener("offline", offline)
+      document.removeEventListener("visibilitychange", onVisible)
       engine.stop()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -345,8 +357,14 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
     }
     if (timeUp && !expiredRef.current) {
       expiredRef.current = true
-      engine.stop()
-      fetch(`/api/attempts/${view.id}/submit`, { method: "POST" })
+      // Send anything still queued (the server accepts in-flight saves for a short grace), then finalize.
+      void engine
+        .flush()
+        .catch(() => {})
+        .then(() => {
+          engine.stop()
+          return fetch(`/api/attempts/${view.id}/submit`, { method: "POST" })
+        })
         .catch(() => {})
         .finally(() => setTimeout(finish, 1200))
     }

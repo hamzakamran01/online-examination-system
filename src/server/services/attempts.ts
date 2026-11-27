@@ -26,6 +26,15 @@ import { audit } from "./audit"
 
 type AttemptRow = typeof attempts.$inferSelect
 
+/**
+ * Network grace (DECISIONS D10): saves already in flight when the timer hits zero
+ * are accepted for this long. The candidate UI locks at zero, so no usable extra
+ * time is gained. Finalization waits for the grace and records submitted_at = deadline.
+ */
+export const DEADLINE_GRACE_MS = 5_000
+const pastGrace = (deadline: Date, now: Date) => now.getTime() > deadline.getTime() + DEADLINE_GRACE_MS
+const graceCutoff = (now: Date) => new Date(now.getTime() - DEADLINE_GRACE_MS)
+
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
@@ -187,7 +196,7 @@ export async function finalizeExpiredForExam(examId: string) {
     const expired = await tx
       .select()
       .from(attempts)
-      .where(and(eq(attempts.examId, examId), eq(attempts.status, "in_progress"), lte(attempts.deadlineAt, now)))
+      .where(and(eq(attempts.examId, examId), eq(attempts.status, "in_progress"), lte(attempts.deadlineAt, graceCutoff(now))))
       .for("update", { skipLocked: true })
     for (const a of expired) await finalizeLocked(tx, a, "timeout", now)
   })
@@ -313,7 +322,7 @@ export async function getAttemptView(actor: SessionUser, attemptId: string): Pro
   const now = new Date()
   const a = await db.transaction(async (tx) => {
     const row = await lockOwnAttempt(tx, actor, attemptId)
-    if (row.status === "in_progress" && row.deadlineAt <= now) {
+    if (row.status === "in_progress" && pastGrace(row.deadlineAt, now)) {
       await finalizeLocked(tx, row, "timeout", now)
       return { ...row, status: "auto_submitted" as const }
     }
@@ -375,7 +384,7 @@ export async function saveAnswers(actor: SessionUser, attemptId: string, raw: Sa
   const result = await db.transaction(async (tx) => {
     const a = await lockOwnAttempt(tx, actor, attemptId)
     if (a.status !== "in_progress") return { kind: "finalized" as const, status: a.status }
-    if (a.deadlineAt <= now) {
+    if (pastGrace(a.deadlineAt, now)) {
       await tx.insert(attemptEvents).values({
         attemptId: a.id,
         type: "late_save_rejected",
@@ -451,7 +460,7 @@ export async function getAttemptStatus(actor: SessionUser, attemptId: string) {
     .from(attempts)
     .where(eq(attempts.id, attemptId))
   if (!a || a.candidateId !== actor.id) throw notFound("Attempt")
-  if (a.status === "in_progress" && a.deadlineAt <= new Date()) {
+  if (a.status === "in_progress" && pastGrace(a.deadlineAt, new Date())) {
     await finalizeExpiredForExam(a.examId)
     return getAttemptStatus(actor, attemptId)
   }
@@ -468,7 +477,7 @@ export async function listCandidateExams(actor: SessionUser) {
   const stale = await db
     .select({ examId: attempts.examId })
     .from(attempts)
-    .where(and(eq(attempts.candidateId, actor.id), eq(attempts.status, "in_progress"), lte(attempts.deadlineAt, now)))
+    .where(and(eq(attempts.candidateId, actor.id), eq(attempts.status, "in_progress"), lte(attempts.deadlineAt, graceCutoff(now))))
   for (const s of stale) await finalizeExpiredForExam(s.examId)
 
   const rows = await db
