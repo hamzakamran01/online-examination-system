@@ -1,6 +1,6 @@
 # Build plan
 
-**Status:** Phase 0 done (deployed) | Phase 1 built, verification next (V.1) | Codex: CX-1 to CX-4 on branch `codex/secondary`
+**Status:** Phase 0 done (deployed) | Phase 1 built, verification next (V.0) | Codex on `codex/secondary`: CX-1 imports done, CX-2 analytics done, CX-3 reports in progress, CX-4 prefs + scratchpad and CX-5 discrimination queued
 
 Rules: tick only when it works end to end on the live URL. "built" = code merged, not yet verified in a browser.
 Each task maps to SPEC IDs. Brief sections define WHAT we build; this order follows dependencies and marks at risk.
@@ -24,7 +24,8 @@ Each task maps to SPEC IDs. Brief sections define WHAT we build; this order foll
 - [ ] P1.8 Auto grading incl. multi-select rules (C-3.7.1) - built
 - [ ] P1.9 Authz pass (C-3.1.3, T-6.1)
 
-### V: verification gate (next, ~45 min) - must pass before Phase 2
+### V: verification gate (next, ~1 h) - must pass before Phase 2
+- [ ] V.0 Tamper-proof countdown: count down from the last server reading with `performance.now()` (monotonic), resync on every save and on focus; device clock changes have no effect (T-6.2a)
 - [ ] V.1 Live walkthrough as admin: create user, change role, deactivate, reset password, audit log entries
 - [ ] V.2 Live walkthrough as examiner: create question of each type, create exam, assign, enroll, checklist, publish, preview (sandbox)
 - [ ] V.3 Live walkthrough as candidate: home groups, lobby, start, answer all types, flag, refresh mid-exam, offline then online, submit twice, expiry on a short exam
@@ -36,11 +37,11 @@ Each task maps to SPEC IDs. Brief sections define WHAT we build; this order foll
    - [ ] P2.1 Manual grading queue for written answers, marks validated 0..max, feedback, totals recalculated in a transaction (C-3.7.2, C-3.7.3, T-6.2c)
    - [ ] P2.2 Results review screen, publish gated on all graded, candidate result page, completed exams retained read-only (C-3.8.1, C-3.8.3)
 2. Core monitoring (moved up from Phase 3 to protect core marks)
-   - [ ] P2.3 Active attempts table, polled: progress, time left, last seen, connection state (C-3.6.1)
+   - [ ] P2.3 Live monitor, polled every 5 s: per candidate status NOT_STARTED / WRITING / DISCONNECTED (no save or heartbeat for 30 s) / SUBMITTED, answered count, time left, last seen, signal count; summary counts by status; lazy-finalize expired attempts before building the view (C-3.6.1)
    - [ ] P2.4 Announcements: examiner posts, candidates see within one poll (C-3.6.2)
-   - [ ] P2.5 Incident log: client signals (tab hidden, fullscreen exit, offline, reconnect) + server events (device change, late save rejected), "signal for review" wording and disclaimer (C-3.6.3)
+   - [ ] P2.5 Incident log: client signals (tab away counted only when >= 1 s, with server-recorded duration; fullscreen exit; offline; reconnect) + server events (device change, late save rejected), "signal for review" wording and disclaimer. Signals NEVER end or penalise an attempt (C-3.6.3)
 3. Integrate Codex branch (merge `codex/secondary`, review, wire up)
-   - [ ] P2.6 Analytics tab (C-3.8.2, S-4.5) - Codex CX-2
+   - [ ] P2.6 Analytics tab + admin read-only access (C-3.8.2, S-4.5) - Codex CX-2 + CX-5 (discrimination index, quality flags)
    - [ ] P2.7 Imports link + enroll-from-import (S-4.4a, S-4.4b) - Codex CX-1
    - [ ] P2.8 PDF download buttons, verify page (S-4.2, S-4.6) - Codex CX-3
    - [ ] P2.9 Preferences panel + scratchpad inside the workspace (S-4.7, S-4.8) - Codex CX-4
@@ -48,15 +49,18 @@ Each task maps to SPEC IDs. Brief sections define WHAT we build; this order foll
 
 ## Phase 3: innovation 5.3 (see INNOVATION.md)
 - [ ] P3.1 Heartbeat: server-measured connection gaps recorded as `connection_gap` with duration (I-5.3)
-- [ ] P3.2 Examiner grants extension: default = measured gap, reason required, audit log, candidate notified, deadline recomputed (I-5.3)
+- [ ] P3.2 Examiner grants extension: default = measured gap, reason required, total capped (15 min per attempt), attempt row locked while granting, audit log, candidate notified, deadline recomputed (I-5.3)
 - [ ] P3.3 T-2 min unsynced-answers warning; resume-on-another-device demo path (I-5.3)
-- [ ] P3.4 (stretch) Difficulty-balanced paper generation (I-5.2)
+- [ ] P3.4 (stretch) Fair paper generation: exam blueprint = N questions per (type, difficulty, marks); each candidate draws the least-used questions first with random ties, so every paper has identical difficulty mix and total marks (I-5.2)
 
 ## Phase 4: FEATURE FREEZE (final 1:30)
 - [ ] P4.1 Demo seed: completed + published exam with graded attempts, ongoing exam with live attempts, upcoming, draft
-- [ ] P4.2 README complete, credentials verified on live URL (SUB-7.2)
+- [ ] P4.2 README complete, credentials verified on live URL, credits incl. reference repos as design inspiration only (SUB-7.2)
 - [ ] P4.3 UI polish: empty states, 375px check, focus, contrast (UX-8.x)
 - [ ] P4.4 Rehearse DEMO.md twice on the live URL; final push + deploy before deadline (SUB-7.4)
+
+## Reference repos (reviewed, see DECISIONS D9)
+Ideas reimplemented, no code copied: monotonic countdown (V.0), live monitor states (P2.3), extension cap (P3.2), discrimination analytics (CX-5), fair generator (P3.4).
 
 ## Cut list (drop in this order if behind)
 1. I-5.2 balanced papers (stretch)

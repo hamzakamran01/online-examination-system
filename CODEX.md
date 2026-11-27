@@ -69,11 +69,22 @@ Build the pieces; Claude integrates them into the exam workspace.
 - Scratchpad: per attempt (`attempts.scratchpad` text column, max 20,000 chars). Service `saveScratchpad(actor, attemptId, text)` (owner only, only while `status = in_progress` and before `deadlineAt`), route `PUT /api/attempts/[id]/scratchpad`, client component `Scratchpad({ attemptId, initial })` with debounced autosave (1 s), saved/saving/offline indicator, character count, clear button with confirm, and a localStorage fallback when offline (key `ev:scratch:<attemptId>`). Make it clear it is never graded.
 - You own: `src/server/services/workspace.ts`, `src/lib/validation/workspace.ts`, `src/features/attempts/workspace/preferences-panel.tsx`, `src/features/attempts/workspace/scratchpad.tsx`, `src/features/attempts/workspace/contrast.css`, `src/features/attempts/workspace/workspace-actions.ts`, `src/app/api/attempts/[id]/scratchpad/route.ts`.
 
+### CX-5 Question analytics: discrimination and quality flags (S-4.5, added after the reference-repo review)
+Extend your CX-2 analytics (same files you already own) with item-analysis measures judges recognise:
+- Rank finalized, non-sandbox attempts by percentage. Upper group = top 27%, lower group = bottom 27% (group size = max(1, round(n * 0.27))).
+- Discrimination index per question = (share correct in upper group) - (share correct in lower group), counting only group members who received that item (papers can differ). Range -1 to +1. Label: >= 0.3 good, 0.1 to 0.3 fair, < 0.1 review (negative = "Review: stronger candidates did worse").
+- "Correct" for objective items = full marks; for written items = at least 50% of the item's marks once graded. Exclude written answers still pending grading from both measures.
+- Flags (show as badges with plain-language tooltips): fewer than 5 graded responses -> "Not enough data" (no other flag); correct rate < 20% -> "Very hard or flawed"; > 95% -> "Too easy"; discrimination < 0.1 -> "Review wording"; skip rate >= 30% -> "Frequently skipped"; most chosen wrong option picked by >= 40% -> "Strong distractor".
+- Add a short "How to read this" explainer panel on the analytics page.
+- Keep these as pure functions in your analytics service (no extra queries per question) and keep sandbox attempts excluded.
+- You own: the same files as CX-2. Reimplement from this description; do not copy code from any other repository.
+
 ## Status (Codex updates this block)
 - [ ] CX-1 Bulk import
 - [ ] CX-2 Analytics
 - [ ] CX-3 PDF reports and verification
 - [ ] CX-4 Preferences and scratchpad
+- [ ] CX-5 Discrimination index and quality flags
 
 ### Notes for Claude (wiring needed, exports, decisions)
 -

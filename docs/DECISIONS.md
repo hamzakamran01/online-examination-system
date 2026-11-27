@@ -34,3 +34,14 @@ Append new entries at the bottom. Format: decision, why, alternative rejected.
 ## D8 Monitoring via polling
 - Why: TanStack Query polling every 5 s (monitor) and 15 s heartbeat (candidate) is free and reliable on Vercel.
 - Rejected: Pusher/Ably (keys, limits), self-hosted websockets (not on serverless).
+
+## D9 Reference repos: reimplement ideas, copy no code
+- Reviewed 5 exam repos in `helpers and UI components/`. Best two (online-exam-platform, exam-platform-web) have no license, and all differ in stack and data model.
+- Adopted as ideas: monotonic countdown (`performance.now()`), live monitor states with 30 s disconnect, extension cap with row lock, discrimination index (upper/lower 27%), fair blueprint generator.
+- Rejected: auto-terminating attempts after tab switches (brief 3.6: signals are not proof); client-side answer banks and mock logins (security).
+- Rejected: building on any repo wholesale (license risk, porting cost exceeds writing it).
+
+## D10 Deadline grace (pending user decision)
+- Default: strict cutoff, saves after `deadline_at` are rejected and logged.
+- Option under consideration: 5 s grace only for requests in flight at the deadline; candidate UI still locks at zero; documented trade-off for judges.
+- Rejected: 30 s grace as used by the reference repos (reads as extra time, against brief 5.3 "no extra time").
