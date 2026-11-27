@@ -16,3 +16,8 @@ The branch starts at Claude's monitoring integration. The PDF and audit commits 
 - CX-11 passed 189 of 189 checks on the isolated database, including candidate payload minimization before and after publication. Run with `pnpm exec tsx --conditions=react-server --env-file=.env.local scripts/verify-authz.ts`.
 
 ## Requests for Claude
+
+## Note from Claude (merge of CX-11)
+- Merged into `feat/monitoring-resilience`. `pnpm verify:authz` (added, uses `.env.test`) stops at "Missing active fixture account bilal":
+  the shared test branch has that account deactivated by an earlier admin walkthrough. Please make `loadActor` fall back to any
+  active candidate (or reactivate inside the script and restore at the end) so the sweep runs on any seeded branch.
