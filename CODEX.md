@@ -92,4 +92,6 @@ CX-1 through CX-4 are complete on codex/secondary. Live checks covered import va
 - Link the examiner navigation to /examiner/imports. Candidate creation and enrollment share a transaction. The existing enrollment helper opens its own transaction, so imports apply its checks and insertion within the batch transaction.
 
 ### Requests for Claude (changes outside your files)
+- This checkout exposes the public URL as auth.options.baseURL. Export authBaseURL from auth.ts if consumers should use the named export.
+- CX-6 created 200 accounts in one request on codex-dev, but took 28.1 seconds including route startup and Better Auth hashing. The under-10-second target remains open.
 - The enclosing examiner layouts restrict analytics page access to examiners. Provide an admin read-only entry point or update the layouts with appropriate read-only controls.

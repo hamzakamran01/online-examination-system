@@ -16,6 +16,7 @@ const number = (n: number | null) =>
 export function Insights({ data }: { data: ExamAnalytics }) {
   const [ascending, sort] = useState(false)
   const { stats, candidates, questions } = data
+  const pending = candidates.filter((candidate) => candidate.grading === "pending").length
   if (!stats.count)
     return (
       <Panel>
@@ -27,6 +28,11 @@ export function Insights({ data }: { data: ExamAnalytics }) {
     )
   return (
     <div className="space-y-6">
+      {pending > 0 && (
+        <p className="rounded-lg border bg-warning-soft p-3 text-sm text-warning-text">
+          {pending} {pending === 1 ? "attempt includes" : "attempts include"} ungraded written answers. Scores may rise.
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         {Object.entries({
           "Finalized attempts": stats.count,

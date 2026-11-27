@@ -3,6 +3,7 @@ import { requireRole } from "@/server/auth/guards"
 import { errorResponse } from "@/server/errors"
 import { importSchema } from "@/lib/validation/imports"
 import { processImport } from "@/server/services/imports"
+export const maxDuration = 60
 export async function POST(req: Request) {
   try {
     const actor = await requireRole("examiner")

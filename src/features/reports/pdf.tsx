@@ -5,6 +5,7 @@ import type { ReactNode } from "react"
 import type { ResultReport } from "@/server/services/reports"
 import type { ExamAnalytics } from "@/server/services/analytics"
 import { fmtDateTime, fmtMarks } from "@/lib/format"
+import { auth } from "@/server/auth/auth"
 const styles = StyleSheet.create({
   page: { padding: 40, fontSize: 10, color: "#18253c", fontFamily: "Helvetica" },
   brand: { fontSize: 10, color: "#415e85", marginBottom: 8 },
@@ -30,9 +31,9 @@ function Sheet({ title, children }: { title: string; children: ReactNode }) {
     </Document>
   )
 }
-function Row({ values }: { values: (string | number)[] }) {
+function Row({ values, compact = false }: { values: (string | number)[]; compact?: boolean }) {
   return (
-    <View wrap={false} style={styles.row}>
+    <View wrap={false} style={[styles.row, ...(compact ? [{ paddingVertical: 1.5, fontSize: 8 }] : [])]}>
       {values.map((v, i) => (
         <Text key={i} style={styles.cell}>
           {v}
@@ -42,10 +43,10 @@ function Row({ values }: { values: (string | number)[] }) {
   )
 }
 export async function resultPdf(r: ResultReport) {
-  const host =
-    process.env.BETTER_AUTH_URL ||
-    (process.env.VERCEL_URL ? "https://" + process.env.VERCEL_URL : "http://localhost:3000")
-  const qr = await QRCode.toDataURL(new URL("/verify/" + r.code, host).href)
+  const authBaseURL = auth.options.baseURL
+  if (typeof authBaseURL !== "string") throw Error("A public authentication URL is required.")
+  const verify = new URL("/verify", authBaseURL).href
+  const qr = await QRCode.toDataURL(verify + "/" + r.code)
   return renderToBuffer(
     <Sheet title="Candidate result">
       <Text style={styles.heading}>{r.title}</Text>
@@ -56,26 +57,23 @@ export async function resultPdf(r: ResultReport) {
         {fmtMarks(r.score)} / {fmtMarks(r.max)} marks ({fmtMarks(r.max ? (100 * r.score) / r.max : 0)}%)
       </Text>
       <Text>
-        {r.grading === "pending"
-          ? "Grading pending"
-          : r.passMark === null
-            ? "Graded"
-            : r.score >= r.passMark
-              ? "Pass"
-              : "Fail"}
+        {r.passMark === null ? "" : r.score >= r.passMark ? "Pass" : "Fail"}
+        {r.grading === "pending" ? (r.passMark === null ? "Grading pending" : " (grading pending)") : ""}
       </Text>
       <Text style={styles.heading}>Question marks</Text>
-      <Row values={["Number", "Type", "Awarded", "Maximum"]} />
+      <Row compact values={["Number", "Type", "Awarded", "Maximum"]} />
       {r.items.map((item, i) => (
         <Row
+          compact
           key={i}
           values={[i + 1, item.type, item.score === null ? "Pending" : fmtMarks(item.score), fmtMarks(item.max)]}
         />
       ))}
       <View wrap={false}>
         <Text style={styles.heading}>Report verification</Text>
+        <PdfImage src={qr} style={{ width: 70, height: 70 }} />
         <Text>{r.code}</Text>
-        <PdfImage src={qr} style={{ width: 90, height: 90 }} />
+        <Text>Verify at {verify}</Text>
       </View>
     </Sheet>,
   )

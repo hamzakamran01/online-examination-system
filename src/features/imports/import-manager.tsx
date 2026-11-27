@@ -123,8 +123,22 @@ export function ImportManager({ exams }: { exams: { id: string; title: string }[
         {result && (
           <>
             <p role="status">
-              {valid} valid, {result.rows.length - valid} with errors{done && `. Imported ${result.imported} rows.`}
+              {valid} valid, {result.rows.length - valid} with errors
             </p>
+            {done && (
+              <ul className="list-inside list-disc text-sm">
+                {kind === "candidates" ? (
+                  <>
+                    <li>New accounts created: {result.created}</li>
+                    <li>Existing accounts reused: {result.reused}</li>
+                    <li>Enrollments added: {result.enrolled}</li>
+                  </>
+                ) : (
+                  <li>Questions created: {result.questions}</li>
+                )}
+                <li>Rows skipped with errors: {result.skipped}</li>
+              </ul>
+            )}
             {!result.rows.length && <p>The file contains no data rows.</p>}
             <div className="max-h-96 overflow-auto">
               <table className="w-full text-left text-sm">
