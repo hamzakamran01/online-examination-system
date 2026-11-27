@@ -10,6 +10,7 @@ import {
   enrollments,
   examQuestions,
   exams,
+  itemVoids,
   questionOptions,
   questions,
   timeExtensions,
@@ -23,6 +24,7 @@ import type { AnswerKey, AnswerResponse, Paper, PaperItem } from "@/lib/domain/p
 import { saveAnswersSchema, type SaveAnswersInput } from "@/lib/validation/attempts"
 import { heartbeatSchema, type HeartbeatInput } from "@/lib/validation/monitoring"
 import { round2 } from "@/lib/format"
+import { attemptTotals, type VoidRule } from "@/lib/domain/scoring"
 import { getManagedExam } from "./exams"
 import { audit } from "./audit"
 import { recordClientSignals, touchAttempt } from "./presence"
@@ -123,36 +125,33 @@ export function candidateAccess(
 /* ----------------------------------------------------------------------------
  * Grading state (C-3.7.3, invariant 10)
  * ------------------------------------------------------------------------- */
-/** Recomputes the attempt totals from answer rows. Call inside the same transaction as any mark change. */
-export async function recalcAttempt(tx: Tx, attempt: Pick<AttemptRow, "id" | "paper">) {
+/** Voided questions of an exam, keyed by paper item id (I-5.4). */
+export async function loadVoids(tx: Tx | typeof db, examId: string) {
+  const rows = await tx.select({ itemId: itemVoids.itemId, policy: itemVoids.policy }).from(itemVoids).where(eq(itemVoids.examId, examId))
+  return new Map<string, VoidRule>(rows.map((r) => [r.itemId, r.policy]))
+}
+
+/**
+ * Recomputes the attempt totals and maximum from answer rows, examiner overrides
+ * and exam-wide voids (invariant 10). Call inside the same transaction as any mark change.
+ */
+export async function recalcAttempt(tx: Tx, attempt: Pick<AttemptRow, "id" | "paper" | "examId">, voids?: Map<string, VoidRule>) {
   const rows = await tx
     .select({ itemId: answers.itemId, autoScore: answers.autoScore, manualScore: answers.manualScore })
     .from(answers)
     .where(eq(answers.attemptId, attempt.id))
-  const byItem = new Map(rows.map((r) => [r.itemId, r]))
-  let auto = 0
-  let manual = 0
-  let pending = 0
-  for (const item of attempt.paper.items) {
-    const r = byItem.get(item.itemId)
-    if (item.type === "written") {
-      if (r?.manualScore === null || r?.manualScore === undefined) {
-        // Blank written answers need no human: they score 0 automatically.
-        if (r) pending++
-      } else manual += r.manualScore
-    } else auto += r?.autoScore ?? 0
-  }
-  const scoreAuto = round2(auto)
-  const scoreManual = round2(manual)
+  const t = attemptTotals(attempt.paper.items, new Map(rows.map((r) => [r.itemId, r])), voids ?? (await loadVoids(tx, attempt.examId)))
   await tx
     .update(attempts)
     .set({
-      scoreAuto,
-      scoreManual,
-      scoreTotal: round2(scoreAuto + scoreManual),
-      gradingStatus: pending > 0 ? "pending" : "graded",
+      scoreAuto: t.scoreAuto,
+      scoreManual: t.scoreManual,
+      scoreTotal: t.scoreTotal,
+      maxMarks: t.maxMarks,
+      gradingStatus: t.pending > 0 ? "pending" : "graded",
     })
     .where(eq(attempts.id, attempt.id))
+  return t
 }
 
 /** Finalizes a locked in-progress attempt exactly once (invariant 4). */
@@ -428,7 +427,7 @@ export async function saveAnswers(actor: SessionUser, attemptId: string, raw: Sa
         setWhere: sql`${answers.clientSeq} < excluded.client_seq`,
       })
 
-    await touchAttempt(tx, a, input.clientId, now)
+    await touchAttempt(tx, a, input.clientId, now, input.presence)
     return { kind: "ok" as const, deadlineAt: a.deadlineAt }
   })
 
@@ -467,7 +466,7 @@ export async function heartbeat(actor: SessionUser, attemptId: string, raw: Hear
       return { ...row, status: "auto_submitted" as const }
     }
     await recordClientSignals(tx, row.id, input.signals, now)
-    await touchAttempt(tx, row, input.clientId, now)
+    await touchAttempt(tx, row, input.clientId, now, input.presence)
     return row
   })
 

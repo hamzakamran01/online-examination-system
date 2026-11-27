@@ -17,6 +17,7 @@
     "verify:engine": "tsx --conditions=react-server --env-file=.env.test scripts/verify-attempt-engine.ts",
     "verify:grading": "tsx --conditions=react-server --env-file=.env.test scripts/verify-grading.ts",
     "verify:monitoring": "tsx --conditions=react-server --env-file=.env.test scripts/verify-monitoring.ts",
+    "verify:trust": "tsx --conditions=react-server --env-file=.env.test scripts/verify-trust.ts",
     "verify:authz": "tsx --conditions=react-server --env-file=.env.test scripts/verify-authz.ts",
     "test": "tsx --conditions=react-server --test \"tests/**/*.test.ts\"",
     "db:demo": "tsx --conditions=react-server --env-file=.env.local src/server/db/demo-activity.ts"

@@ -93,7 +93,7 @@ async function main() {
     await submitAttempt(candidate, attemptId)
     const result = await db.transaction(async (tx) => {
       const [attempt] = await tx
-        .select({ id: attempts.id, paper: attempts.paper })
+        .select({ id: attempts.id, paper: attempts.paper, examId: attempts.examId })
         .from(attempts)
         .where(eq(attempts.id, attemptId))
         .for("update")

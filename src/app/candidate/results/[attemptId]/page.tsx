@@ -1,8 +1,9 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
-import { Check, Clock, Lock, MessageSquare, X } from "lucide-react"
+import { Check, Clock, Lock, MessageSquare, Scale, X } from "lucide-react"
 import { requirePageRole } from "@/server/auth/guards"
 import { getCandidateResult } from "@/server/services/grading"
+import { getCandidateDisputes } from "@/server/services/disputes"
 import { AppError } from "@/server/errors"
 import { fmtDateTime, fmtMarks } from "@/lib/format"
 import { cn } from "@/lib/utils"
@@ -10,6 +11,7 @@ import { PageHeader, Panel } from "@/components/shell/page-header"
 import { Badge } from "@/components/ui/badge"
 import { DownloadReportButton } from "@/features/reports/download-button"
 import { ResultMood } from "@/features/results/result-mood"
+import { DisputeThread, RaiseDisputeButton } from "@/features/disputes/candidate-dispute"
 
 export const metadata: Metadata = { title: "My result" }
 
@@ -20,6 +22,9 @@ export default async function CandidateResultPage({ params }: PageProps<"/candid
     if (e instanceof AppError && e.code === "NOT_FOUND") notFound()
     throw e
   })
+  const disputes = r.published ? await getCandidateDisputes(actor, attemptId) : null
+  const disputeByItem = new Map(disputes?.disputes.map((d) => [d.itemId, d]) ?? [])
+  const canRaise = !!disputes?.window.open && disputes.remaining > 0
 
   return (
     <div className="max-w-3xl">
@@ -51,11 +56,32 @@ export default async function CandidateResultPage({ params }: PageProps<"/candid
         </Panel>
       )}
 
+      {disputes && (
+        <Panel className="mb-6 flex gap-3 p-5">
+          <Scale className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />
+          <div className="text-sm">
+            <p className="font-medium">Something not right?</p>
+            <p className="text-muted-foreground">
+              {disputes.window.open
+                ? `You can question the mark of any question until ${fmtDateTime(disputes.window.closesAt)}. Your examiner sees the question exactly as you saw it, your answer, the marking guide and the exam record, and must explain the decision. ${disputes.remaining} of ${disputes.max} disputes left.`
+                : `The window for disputes closed on ${fmtDateTime(disputes.window.closesAt)}.`}
+            </p>
+            {disputes.disputes.length > 0 && (
+              <p className="mt-1 text-muted-foreground">
+                {disputes.disputes.filter((d) => d.status === "open").length} under review,{" "}
+                {disputes.disputes.filter((d) => d.status !== "open" && d.status !== "withdrawn").length} decided.
+              </p>
+            )}
+          </div>
+        </Panel>
+      )}
+
       <h2 className="mb-3 font-semibold">{r.published ? "Question breakdown" : "Your submitted answers"}</h2>
       <ol className="space-y-3">
         {r.items.map((it) => {
           const selected = it.response?.kind === "choice" ? it.response.selected : []
           const text = it.response?.kind === "text" ? it.response.text : ""
+          const dispute = disputeByItem.get(it.itemId)
           return (
             <li key={it.itemId}>
               <Panel className="p-5">
@@ -67,6 +93,8 @@ export default async function CandidateResultPage({ params }: PageProps<"/candid
                         <Clock className="size-3.5" aria-hidden />
                         {fmtMarks(it.maxMarks)} marks
                       </span>
+                    ) : it.voided === "exclude" ? (
+                      <span className="text-muted-foreground">Voided, not counted</span>
                     ) : (
                       <span className="font-medium">
                         {fmtMarks(it.marks)} / {fmtMarks(it.maxMarks)}
@@ -103,11 +131,28 @@ export default async function CandidateResultPage({ params }: PageProps<"/candid
                     {!selected.length && <li className="text-muted-foreground italic">No option selected.</li>}
                   </ul>
                 )}
+                {it.voided && (
+                  <p className="mt-3 rounded-lg border border-info/30 bg-info-soft p-3 text-sm text-info-text">
+                    {it.voided === "exclude"
+                      ? "This question was voided for every candidate and removed from the total marks."
+                      : "This question was voided for every candidate and everyone received full marks for it."}
+                  </p>
+                )}
                 {it.feedback && (
                   <p className="mt-3 flex gap-2 rounded-lg border border-info/30 bg-info-soft p-3 text-sm text-info-text">
                     <MessageSquare className="mt-0.5 size-4 shrink-0" aria-hidden />
                     {it.feedback}
                   </p>
+                )}
+                {dispute ? (
+                  <DisputeThread attemptId={r.attempt.id} d={dispute} />
+                ) : (
+                  canRaise &&
+                  !it.voided && (
+                    <div className="mt-3 flex justify-end">
+                      <RaiseDisputeButton attemptId={r.attempt.id} itemId={it.itemId} questionNo={it.index + 1} />
+                    </div>
+                  )
                 )}
               </Panel>
             </li>

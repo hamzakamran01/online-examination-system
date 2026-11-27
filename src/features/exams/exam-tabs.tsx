@@ -14,6 +14,7 @@ export function ExamTabs({ examId }: { examId: string }) {
     { href: `${base}/review`, label: "Review and publish" },
     { href: `${base}/monitor`, label: "Live monitor" },
     { href: `${base}/results`, label: "Grading and results" },
+    { href: `${base}/disputes`, label: "Disputes" },
     { href: `${base}/analytics`, label: "Analytics" },
   ]
   return (
