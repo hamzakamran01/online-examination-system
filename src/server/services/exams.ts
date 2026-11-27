@@ -42,12 +42,27 @@ export async function listManagedExams(actor: SessionUser) {
       enrolledCount: sql<number>`(select count(*)::int from ${enrollments} where ${enrollments.examId} = ${exams.id})`,
       activeCount: sql<number>`(select count(*)::int from ${attempts} where ${attempts.examId} = ${exams.id} and ${attempts.isSandbox} = false and ${attempts.status} = 'in_progress' and ${attempts.deadlineAt} > now())`,
       submittedCount: sql<number>`(select count(*)::int from ${attempts} where ${attempts.examId} = ${exams.id} and ${attempts.isSandbox} = false and ${attempts.status} <> 'in_progress')`,
+      toGradeCount: sql<number>`(select count(*)::int from ${attempts} where ${attempts.examId} = ${exams.id} and ${attempts.isSandbox} = false and ${attempts.status} <> 'in_progress' and ${attempts.gradingStatus} = 'pending')`,
     })
     .from(exams)
     .where(actor.role === "admin" ? undefined : eq(exams.ownerId, actor.id))
     .orderBy(desc(exams.startsAt))
   const now = new Date()
-  return rows.map((r) => ({ ...r, effective: effectiveStatus(r, now) }))
+  return rows.map((r) => {
+    const effective = effectiveStatus(r, now)
+    // Board stage: the examiner's next job, derived from lifecycle plus grading state.
+    const stage =
+      effective === "draft"
+        ? ("draft" as const)
+        : effective === "published"
+          ? ("scheduled" as const)
+          : effective === "ongoing"
+            ? ("live" as const)
+            : r.resultsPublishedAt
+              ? ("released" as const)
+              : ("grading" as const)
+    return { ...r, effective, stage, windowProgress: Math.min(1, Math.max(0, (now.getTime() - r.startsAt.getTime()) / (r.endsAt.getTime() - r.startsAt.getTime()))) }
+  })
 }
 
 function toValues(input: ReturnType<typeof examSchema.parse>) {

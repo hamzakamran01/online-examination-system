@@ -2,25 +2,10 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import {
-  AlertTriangle,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  CloudOff,
-  Flag,
-  FlaskConical,
-  LayoutGrid,
-  Loader2,
-  RefreshCw,
-  Send,
-  Timer,
-} from "lucide-react"
+import { ChevronLeft, ChevronRight, Flag, FlaskConical, LayoutGrid, Loader2, Send, SlidersHorizontal } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Textarea } from "@/components/ui/textarea"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import {
   AlertDialog,
@@ -31,28 +16,27 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Logo } from "@/components/shell/logo"
-import { fmtClock, fmtMarks } from "@/lib/format"
-import type { AnswerResponse, PaperItem } from "@/lib/domain/paper"
+import { LogoMark } from "@/components/shell/logo"
+import { fmtClock } from "@/lib/format"
+import type { AnswerResponse } from "@/lib/domain/paper"
+import type { Preferences } from "@/lib/validation/workspace"
 import type { AttemptView } from "@/server/services/attempts"
-import { SERVER_SNAPSHOT, SyncEngine, type Entry, type SyncState } from "./sync-engine"
+import { SERVER_SNAPSHOT, SyncEngine, type Entry } from "./sync-engine"
+import { Palette, QuestionView, SyncStatus, TimeRail, answered } from "./workspace-ui"
+import { PreferencesPanel } from "./preferences-panel"
+import { Scratchpad } from "./scratchpad"
 import { useAttemptRuntime } from "./use-attempt-runtime"
 import { AnnouncementBanner } from "./announcement-banner"
+import "./contrast.css"
 
 type AnswerMap = Record<string, Entry>
 
-const answered = (r: AnswerResponse | null | undefined) =>
-  !!r && (r.kind === "choice" ? r.selected.length > 0 : r.text.trim().length > 0)
-
-const TYPE_HINT = { single: "Select one answer", multi: "Select all that apply", written: "Write your answer" } as const
-
 /* ----------------------------------------------------------------------------
- * Server-synced clock (invariant 1). The device clock only measures elapsed
- * time between server readings; it never decides the deadline.
+ * Server-synced clock (invariant 1). A server timestamp is paired with a
+ * performance.now() reading; performance.now() is monotonic, so changing the
+ * device date or time cannot move the countdown.
  * ------------------------------------------------------------------------- */
 function useServerClock(initialServerNow: string, initialDeadline: string) {
-  // Sync point = a server timestamp paired with a performance.now() reading.
-  // performance.now() is monotonic: changing the device date or time cannot move it.
   const [point, setPoint] = React.useState(() => ({ server: Date.parse(initialServerNow), mono: performance.now() }))
   const [deadline, setDeadline] = React.useState(() => Date.parse(initialDeadline))
   const [now, setNow] = React.useState(() => Date.parse(initialServerNow))
@@ -64,224 +48,44 @@ function useServerClock(initialServerNow: string, initialDeadline: string) {
     setPoint({ server: serverNow, mono: performance.now() })
     setDeadline(dl)
   }, [])
-  return { remaining: deadline - now, sync }
+  return { remaining: deadline - now, deadline, sync }
 }
 
-function SyncPill({ state, pending, lastSyncedAt }: { state: SyncState; pending: number; lastSyncedAt: number | null }) {
-  const map = {
-    saved: { icon: CheckCircle2, text: "All answers saved", cls: "text-success-text bg-success-soft" },
-    saving: { icon: Loader2, text: "Saving", cls: "text-muted-foreground bg-muted" },
-    retrying: { icon: RefreshCw, text: `Connection unstable, retrying${pending ? ` (${pending} pending)` : ""}`, cls: "text-warning-text bg-warning-soft" },
-    offline: { icon: CloudOff, text: `Offline, ${pending} answer${pending === 1 ? "" : "s"} kept on this device`, cls: "text-warning-text bg-warning-soft" },
-    error: { icon: AlertTriangle, text: "Some answers could not be saved", cls: "text-danger-text bg-danger-soft" },
-  }[state]
-  const Icon = map.icon
-  return (
-    <span
-      role="status"
-      aria-live="polite"
-      title={lastSyncedAt ? `Last synced ${new Date(lastSyncedAt).toLocaleTimeString()}` : undefined}
-      className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium", map.cls)}
-    >
-      <Icon className={cn("size-3.5", (state === "saving" || state === "retrying") && "animate-spin")} aria-hidden />
-      <span className="max-w-[16rem] truncate">{map.text}</span>
-    </span>
-  )
+/** Display preferences (S-4.7). Font scale applies at the root so rem-sized controls scale too. */
+function usePreferences(initial: Preferences) {
+  const [prefs, setPrefs] = React.useState(initial)
+  React.useEffect(() => {
+    const root = document.documentElement
+    const before = root.style.fontSize
+    root.style.fontSize = `${prefs.fontScale}%`
+    return () => {
+      root.style.fontSize = before
+    }
+  }, [prefs.fontScale])
+  const themeClass = prefs.theme === "contrast" ? "contrast" : prefs.theme === "dark" ? "dark" : prefs.theme === "light" ? "light-scope" : ""
+  return { prefs, setPrefs, themeClass }
 }
 
-function Palette({
-  items,
-  answers,
-  current,
-  onJump,
-}: {
-  items: PaperItem[]
-  answers: AnswerMap
-  current: number
-  onJump: (i: number) => void
-}) {
-  const counts = { answered: 0, unanswered: 0, flagged: 0 }
-  items.forEach((it) => {
-    const a = answers[it.itemId]
-    if (answered(a?.response)) counts.answered++
-    else counts.unanswered++
-    if (a?.flagged) counts.flagged++
-  })
-  return (
-    <div className="space-y-4">
-      <ol className="grid grid-cols-6 gap-2 sm:grid-cols-8 lg:grid-cols-5">
-        {items.map((it, i) => {
-          const a = answers[it.itemId]
-          const isAnswered = answered(a?.response)
-          const label = `Question ${i + 1}, ${isAnswered ? "answered" : "not answered"}${a?.flagged ? ", marked for review" : ""}${i === current ? ", current" : ""}`
-          return (
-            <li key={it.itemId}>
-              <button
-                type="button"
-                onClick={() => onJump(i)}
-                aria-label={label}
-                aria-current={i === current ? "step" : undefined}
-                className={cn(
-                  "relative grid aspect-square w-full place-items-center rounded-lg border text-sm font-medium tabular-nums transition-colors",
-                  isAnswered ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted",
-                  i === current && "ring-3 ring-ring/60 ring-offset-1 ring-offset-background"
-                )}
-              >
-                {i + 1}
-                {a?.flagged && (
-                  <span className="absolute -top-1.5 -right-1.5 grid size-4 place-items-center rounded-full bg-warning text-[0.6rem] text-black" aria-hidden>
-                    <Flag className="size-2.5" />
-                  </span>
-                )}
-              </button>
-            </li>
-          )
-        })}
-      </ol>
-      <dl className="grid grid-cols-3 gap-2 text-center text-xs">
-        <div className="rounded-lg bg-muted p-2">
-          <dt className="flex items-center justify-center gap-1 text-muted-foreground">
-            <span className="size-2.5 rounded-sm bg-primary" aria-hidden />
-            Answered
-          </dt>
-          <dd className="text-base font-semibold tabular-nums">{counts.answered}</dd>
-        </div>
-        <div className="rounded-lg bg-muted p-2">
-          <dt className="flex items-center justify-center gap-1 text-muted-foreground">
-            <span className="size-2.5 rounded-sm border bg-background" aria-hidden />
-            Unanswered
-          </dt>
-          <dd className="text-base font-semibold tabular-nums">{counts.unanswered}</dd>
-        </div>
-        <div className="rounded-lg bg-muted p-2">
-          <dt className="flex items-center justify-center gap-1 text-muted-foreground">
-            <Flag className="size-3 text-warning-text" aria-hidden />
-            Review
-          </dt>
-          <dd className="text-base font-semibold tabular-nums">{counts.flagged}</dd>
-        </div>
-      </dl>
-    </div>
-  )
-}
-
-function QuestionView({
-  item,
-  index,
-  total,
-  entry,
-  disabled,
-  onAnswer,
-}: {
-  item: PaperItem
-  index: number
-  total: number
-  entry: Entry | undefined
-  disabled: boolean
-  onAnswer: (r: AnswerResponse | null) => void
-}) {
-  const selected = entry?.response?.kind === "choice" ? entry.response.selected : []
-  const text = entry?.response?.kind === "text" ? entry.response.text : ""
-  const headingId = `q-${item.itemId}`
-
-  return (
-    <article aria-labelledby={headingId} className="rounded-2xl border bg-card p-5 shadow-panel sm:p-8">
-      <header className="mb-5 flex flex-wrap items-center gap-2 text-sm">
-        <span className="font-medium text-muted-foreground">
-          Question {index + 1} of {total}
-        </span>
-        <Badge variant="brand">
-          {fmtMarks(item.marks)} mark{item.marks === 1 ? "" : "s"}
-        </Badge>
-        {item.type === "multi" && item.scheme === "partial" && <Badge variant="outline">Partial credit</Badge>}
-        <span className="ml-auto text-xs text-muted-foreground">{TYPE_HINT[item.type]}</span>
-      </header>
-      <h2 id={headingId} className="mb-6 text-[1.05em] leading-relaxed font-medium whitespace-pre-wrap">
-        {item.stem}
-      </h2>
-
-      {item.type === "written" ? (
-        <div className="space-y-1.5">
-          <label htmlFor={`ans-${item.itemId}`} className="sr-only">
-            Your answer
-          </label>
-          <Textarea
-            id={`ans-${item.itemId}`}
-            rows={10}
-            value={text}
-            disabled={disabled}
-            spellCheck
-            maxLength={20000}
-            placeholder="Type your answer here"
-            className="min-h-56 text-[1em] leading-relaxed"
-            onChange={(e) => onAnswer(e.target.value ? { kind: "text", text: e.target.value } : null)}
-          />
-          <p className="text-right text-xs text-muted-foreground tabular-nums">
-            {text.trim() ? text.trim().split(/\s+/).length : 0} words
-          </p>
-        </div>
-      ) : (
-        <fieldset disabled={disabled}>
-          <legend className="sr-only">{TYPE_HINT[item.type]}</legend>
-          <ul className="space-y-2.5">
-            {item.options.map((o, oi) => {
-              const checked = selected.includes(o.id)
-              return (
-                <li key={o.id}>
-                  <label
-                    className={cn(
-                      "flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
-                      checked ? "border-primary bg-brand-softer" : "hover:bg-muted/60"
-                    )}
-                  >
-                    <input
-                      type={item.type === "single" ? "radio" : "checkbox"}
-                      name={`opt-${item.itemId}`}
-                      checked={checked}
-                      onChange={() => {
-                        const next =
-                          item.type === "single"
-                            ? [o.id]
-                            : checked
-                              ? selected.filter((x) => x !== o.id)
-                              : [...selected, o.id]
-                        onAnswer(next.length ? { kind: "choice", selected: next } : null)
-                      }}
-                      className="mt-0.5 size-4.5 shrink-0 accent-[var(--primary)]"
-                    />
-                    <span className="flex-1">
-                      <span className="mr-2 font-medium text-muted-foreground">{String.fromCharCode(65 + oi)}.</span>
-                      {o.text}
-                    </span>
-                  </label>
-                </li>
-              )
-            })}
-          </ul>
-          {item.type === "single" && selected.length > 0 && !disabled && (
-            <button type="button" onClick={() => onAnswer(null)} className="mt-3 text-xs text-muted-foreground underline-offset-2 hover:underline">
-              Clear selection
-            </button>
-          )}
-        </fieldset>
-      )}
-    </article>
-  )
-}
-
-export function ExamWorkspace({ view }: { view: AttemptView }) {
+export function ExamWorkspace({ view, preferences }: { view: AttemptView; preferences: Preferences }) {
   const router = useRouter()
   const items = view.paper.items
-  const { remaining, sync } = useServerClock(view.serverNow, view.deadlineAt)
+  const { remaining, deadline, sync } = useServerClock(view.serverNow, view.deadlineAt)
+  const { prefs, setPrefs, themeClass } = usePreferences(preferences)
   const [answers, setAnswers] = React.useState<AnswerMap>(view.answers)
   const [current, setCurrent] = React.useState(0)
+  const [visited, setVisited] = React.useState<Set<string>>(
+    () => new Set([...(items[0] ? [items[0].itemId] : []), ...Object.keys(view.answers)])
+  )
   const [mode, setMode] = React.useState<"question" | "review">("question")
   const [paletteOpen, setPaletteOpen] = React.useState(false)
+  const [prefsOpen, setPrefsOpen] = React.useState(false)
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const [submitting, setSubmitting] = React.useState(false)
   const [locked, setLocked] = React.useState<null | "time" | "submitted">(null)
   const liveRef = React.useRef<HTMLParagraphElement>(null)
+  const headingRef = React.useRef<HTMLHeadingElement>(null)
   const expiredRef = React.useRef(false)
+  const totalMs = Math.max(1, Date.parse(view.deadlineAt) - Date.parse(view.startedAt))
 
   const finish = React.useCallback(() => router.replace(`/attempt/${view.id}/done`), [router, view.id])
 
@@ -410,50 +214,90 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
     }
   }
 
+  const scrollLayout = prefs.layout === "scroll"
   const item = items[current]
   const pending = sync$.pending
   const unansweredIdx = items.map((it, i) => (answered(answers[it.itemId]?.response) ? -1 : i)).filter((i) => i >= 0)
   const flaggedIdx = items.map((it, i) => (answers[it.itemId]?.flagged ? i : -1)).filter((i) => i >= 0)
   const low = remaining <= 5 * 60_000
   const critical = remaining <= 60_000
+  const deadlineLabel = new Date(deadline).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 
   const jump = (i: number) => {
+    const target = items[i]
+    if (target) setVisited((prev) => (prev.has(target.itemId) ? prev : new Set(prev).add(target.itemId)))
     setCurrent(i)
     setMode("question")
     setPaletteOpen(false)
-    window.scrollTo({ top: 0 })
+    if (scrollLayout) {
+      document.getElementById(`question-${i + 1}`)?.scrollIntoView({ behavior: "smooth", block: "start" })
+    } else {
+      window.scrollTo({ top: 0 })
+      // Move focus to the new question so keyboard and screen reader users land on it.
+      requestAnimationFrame(() => headingRef.current?.focus({ preventScroll: true }))
+    }
   }
 
+  const flagButton = (itemId: string) => (
+    <Button
+      variant="outline"
+      aria-pressed={!!answers[itemId]?.flagged}
+      disabled={!!lockState}
+      onClick={() => update(itemId, { flagged: !answers[itemId]?.flagged }, 300)}
+      className={cn(answers[itemId]?.flagged && "border-time/50 bg-time-soft text-time-text hover:bg-time-soft")}
+    >
+      <Flag />
+      {answers[itemId]?.flagged ? "Marked for review" : "Mark for review"}
+    </Button>
+  )
+
+  const palette = (
+    <div className="flex flex-col gap-4">
+      <div className="rounded-xl border bg-surface p-4">
+        <Palette items={items} answers={answers} visited={visited} current={mode === "question" ? current : -1} onJump={jump} />
+        <Button variant="outline" className="mt-4 w-full" onClick={() => setMode("review")} disabled={!!lockState}>
+          Review and submit
+        </Button>
+      </div>
+      <Scratchpad attemptId={view.id} initial={view.scratchpad} />
+    </div>
+  )
+
   return (
-    <div className="min-h-dvh bg-canvas">
+    <div className={cn("min-h-dvh bg-canvas text-foreground", themeClass)}>
       <p ref={liveRef} className="sr-only" aria-live="assertive" />
+
       {view.isSandbox && (
         <div className="flex items-center justify-center gap-2 bg-info-soft px-4 py-1.5 text-center text-xs font-medium text-info-text">
           <FlaskConical className="size-3.5" aria-hidden />
-          Sandbox preview. This attempt never affects results or statistics.
+          Sandbox preview. This attempt never counts in results or statistics.
         </div>
       )}
-      <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
-          <Logo compact className="hidden sm:inline-flex" />
+
+      <header className="sticky top-0 z-30 border-b bg-surface/95 backdrop-blur-sm">
+        <div className="mx-auto flex h-16 max-w-[1240px] items-center gap-3 px-4 sm:px-6">
+          <LogoMark className="hidden sm:grid" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{view.examTitle}</p>
-            <div className="hidden sm:block">
-              <SyncPill state={sync$.state} pending={pending} lastSyncedAt={sync$.lastSyncedAt} />
-            </div>
+            <SyncStatus state={sync$.state} pending={pending} lastSyncedAt={sync$.lastSyncedAt} />
           </div>
+
           <div
             role="timer"
             aria-label={`Time remaining ${fmtClock(remaining)}`}
             className={cn(
-              "flex items-center gap-2 rounded-lg border px-3 py-1.5 font-mono text-lg font-semibold tabular-nums",
-              critical ? "border-danger/40 bg-danger-soft text-danger-text" : low ? "border-warning/40 bg-warning-soft text-warning-text" : "bg-card"
+              "flex flex-col items-end rounded-lg px-3 py-1",
+              critical ? "bg-danger-soft text-danger-text" : low ? "bg-time-soft text-time-text" : "bg-surface-sunken"
             )}
           >
-            <Timer className="size-4" aria-hidden />
-            {fmtClock(remaining)}
+            <span className="font-mono text-lg leading-tight font-semibold tabular-nums">{fmtClock(remaining)}</span>
+            <span className="hidden text-[0.68rem] leading-tight opacity-80 sm:block">ends {deadlineLabel} server time</span>
           </div>
-          <Button variant="outline" className="lg:hidden" onClick={() => setPaletteOpen(true)} aria-label="Show all questions">
+
+          <Button variant="ghost" size="icon" aria-label="Display settings" onClick={() => setPrefsOpen(true)}>
+            <SlidersHorizontal />
+          </Button>
+          <Button variant="outline" size="icon" className="lg:hidden" onClick={() => setPaletteOpen(true)} aria-label="Show all questions">
             <LayoutGrid />
           </Button>
           <Button onClick={() => setMode("review")} disabled={!!lockState} className="hidden sm:inline-flex">
@@ -461,23 +305,104 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
             Review and submit
           </Button>
         </div>
-        <div className="border-t px-4 py-1.5 sm:hidden"><SyncPill state={sync$.state} pending={pending} lastSyncedAt={sync$.lastSyncedAt} /></div>
+        <TimeRail remaining={remaining} total={totalMs} />
       </header>
 
       {lockState && (
-        <div role="alert" className="mx-auto mt-4 max-w-3xl px-4">
-          <div className="flex items-center gap-2 rounded-xl border border-info/30 bg-info-soft p-4 text-sm text-info-text">
+        <div role="alert" className="mx-auto mt-4 max-w-[1240px] px-4 sm:px-6">
+          <div className="flex items-center gap-2 rounded-xl border border-info/30 bg-info-soft px-4 py-3 text-sm text-info-text">
             <Loader2 className="size-4 animate-spin" aria-hidden />
-            {lockState === "time" ? "Time is up. Finalizing your submission." : "Submitting."}
+            {lockState === "time" ? "Time is up. Finalizing your submission with every answer saved before the deadline." : "Submitting."}
           </div>
         </div>
       )}
 
       <AnnouncementBanner all={runtime.announcements} visible={runtime.visible} onDismiss={runtime.dismiss} />
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[1fr_300px]">
-        <main id="main" className="min-w-0">
-          {mode === "question" ? (
+      <div
+        className={cn(
+          "mx-auto grid max-w-[1240px] gap-6 px-4 py-6 sm:px-6 lg:py-8",
+          prefs.paletteSide === "left" ? "lg:grid-cols-[300px_minmax(0,1fr)]" : "lg:grid-cols-[minmax(0,1fr)_300px]"
+        )}
+      >
+        <main id="main" className={cn("min-w-0", prefs.paletteSide === "left" && "lg:order-2")}>
+          {mode === "review" ? (
+            <section aria-labelledby="review-h" className="rounded-xl border bg-surface p-5 sm:p-8">
+              <h2 id="review-h" className="font-display text-2xl font-semibold">
+                Review before submitting
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">You can change any answer until you submit or the time runs out.</p>
+              <div className="mt-6 grid grid-cols-3 gap-px overflow-hidden rounded-xl border bg-border">
+                {[
+                  ["Answered", `${items.length - unansweredIdx.length} / ${items.length}`, ""],
+                  ["Unanswered", String(unansweredIdx.length), unansweredIdx.length ? "text-time-text" : ""],
+                  ["For review", String(flaggedIdx.length), flaggedIdx.length ? "text-time-text" : ""],
+                ].map(([label, value, tone]) => (
+                  <div key={label} className="bg-surface px-4 py-3">
+                    <p className="text-xs text-muted-foreground">{label}</p>
+                    <p className={cn("font-display text-2xl font-semibold tabular-nums", tone)}>{value}</p>
+                  </div>
+                ))}
+              </div>
+              {(
+                [
+                  ["Unanswered questions", unansweredIdx],
+                  ["Marked for review", flaggedIdx],
+                ] as const
+              ).map(([label, list]) =>
+                list.length ? (
+                  <div key={label} className="mt-6">
+                    <p className="mb-2 text-sm font-medium">{label}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {list.map((i) => (
+                        <Button key={i} variant="outline" size="sm" onClick={() => jump(i)}>
+                          Question {i + 1}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null
+              )}
+              {pending > 0 && (
+                <p className="mt-6 rounded-lg bg-time-soft px-4 py-3 text-sm text-time-text">
+                  {pending} answer{pending === 1 ? " is" : "s are"} still on this device only. Submitting sends them first.
+                </p>
+              )}
+              <div className="mt-8 flex flex-wrap justify-between gap-2 border-t pt-6">
+                <Button variant="outline" onClick={() => setMode("question")}>
+                  <ChevronLeft />
+                  Back to questions
+                </Button>
+                <Button onClick={() => setConfirmOpen(true)} disabled={!!lockState || submitting}>
+                  <Send />
+                  Submit exam
+                </Button>
+              </div>
+            </section>
+          ) : scrollLayout ? (
+            <div className="flex flex-col gap-4">
+              {items.map((it, i) => (
+                <div key={it.itemId} className="flex flex-col gap-2">
+                  <QuestionView
+                    item={it}
+                    index={i}
+                    total={items.length}
+                    entry={answers[it.itemId]}
+                    disabled={!!lockState}
+                    onAnswer={(r) => {
+                      setVisited((prev) => (prev.has(it.itemId) ? prev : new Set(prev).add(it.itemId)))
+                      update(it.itemId, { response: r }, it.type === "written" ? 900 : 300)
+                    }}
+                  />
+                  <div className="flex justify-end">{flagButton(it.itemId)}</div>
+                </div>
+              ))}
+              <Button className="self-end" onClick={() => setMode("review")} disabled={!!lockState}>
+                Review answers
+                <ChevronRight />
+              </Button>
+            </div>
+          ) : (
             <>
               <QuestionView
                 item={item}
@@ -485,6 +410,7 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
                 total={items.length}
                 entry={answers[item.itemId]}
                 disabled={!!lockState}
+                headingRef={headingRef}
                 onAnswer={(r) => update(item.itemId, { response: r }, item.type === "written" ? 900 : 300)}
               />
               <nav aria-label="Question navigation" className="mt-4 flex flex-wrap items-center gap-2">
@@ -492,20 +418,11 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
                   <ChevronLeft />
                   Previous
                 </Button>
-                <Button
-                  variant={answers[item.itemId]?.flagged ? "secondary" : "ghost"}
-                  aria-pressed={!!answers[item.itemId]?.flagged}
-                  disabled={!!lockState}
-                  onClick={() => update(item.itemId, { flagged: !answers[item.itemId]?.flagged }, 300)}
-                  className={cn(answers[item.itemId]?.flagged && "text-warning-text")}
-                >
-                  <Flag />
-                  {answers[item.itemId]?.flagged ? "Marked for review" : "Mark for review"}
-                </Button>
-                <div className="ml-auto flex gap-2">
+                {flagButton(item.itemId)}
+                <div className="ml-auto">
                   {current < items.length - 1 ? (
                     <Button onClick={() => jump(current + 1)}>
-                      Next
+                      Next question
                       <ChevronRight />
                     </Button>
                   ) : (
@@ -517,89 +434,26 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
                 </div>
               </nav>
             </>
-          ) : (
-            <section aria-labelledby="review-h" className="rounded-2xl border bg-card p-5 shadow-panel sm:p-8">
-              <h2 id="review-h" className="text-xl font-semibold">
-                Review before submitting
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                You can still change any answer until you submit or the time runs out.
-              </p>
-              <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl bg-muted p-4">
-                  <p className="text-xs text-muted-foreground">Answered</p>
-                  <p className="text-2xl font-semibold tabular-nums">{items.length - unansweredIdx.length} / {items.length}</p>
-                </div>
-                <div className={cn("rounded-xl p-4", unansweredIdx.length ? "bg-warning-soft" : "bg-muted")}>
-                  <p className="text-xs text-muted-foreground">Unanswered</p>
-                  <p className="text-2xl font-semibold tabular-nums">{unansweredIdx.length}</p>
-                </div>
-                <div className={cn("rounded-xl p-4", flaggedIdx.length ? "bg-warning-soft" : "bg-muted")}>
-                  <p className="text-xs text-muted-foreground">Marked for review</p>
-                  <p className="text-2xl font-semibold tabular-nums">{flaggedIdx.length}</p>
-                </div>
-              </div>
-              {[
-                ["Unanswered questions", unansweredIdx],
-                ["Marked for review", flaggedIdx],
-              ].map(([label, list]) =>
-                (list as number[]).length ? (
-                  <div key={label as string} className="mt-6">
-                    <p className="mb-2 text-sm font-medium">{label as string}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {(list as number[]).map((i) => (
-                        <Button key={i} variant="outline" size="sm" onClick={() => jump(i)}>
-                          Question {i + 1}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                ) : null
-              )}
-              {pending > 0 && (
-                <p className="mt-6 flex gap-2 rounded-lg bg-warning-soft p-3 text-sm text-warning-text">
-                  <CloudOff className="mt-0.5 size-4 shrink-0" aria-hidden />
-                  {pending} answer{pending === 1 ? " is" : "s are"} not on the server yet. Submitting will try to sync first.
-                </p>
-              )}
-              <div className="mt-8 flex flex-wrap justify-between gap-2">
-                <Button variant="outline" onClick={() => setMode("question")}>
-                  <ChevronLeft />
-                  Back to questions
-                </Button>
-                <Button onClick={() => setConfirmOpen(true)} disabled={!!lockState || submitting}>
-                  <Send />
-                  Submit exam
-                </Button>
-              </div>
-            </section>
           )}
         </main>
 
-        <aside aria-label="All questions" className="hidden lg:block">
-          <div className="sticky top-24 space-y-4 rounded-2xl border bg-card p-5 shadow-panel">
-            <p className="text-sm font-semibold">Questions</p>
-            <Palette items={items} answers={answers} current={mode === "question" ? current : -1} onJump={jump} />
-            <Button variant="outline" className="w-full" onClick={() => setMode("review")} disabled={!!lockState}>
-              Review and submit
-            </Button>
-          </div>
+        <aside aria-label="Questions and notes" className={cn("hidden lg:block", prefs.paletteSide === "left" && "lg:order-1")}>
+          <div className="sticky top-24">{palette}</div>
         </aside>
       </div>
 
       <Sheet open={paletteOpen} onOpenChange={setPaletteOpen}>
-        <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto p-5">
+        <SheetContent side="bottom" className="max-h-[88dvh] overflow-y-auto p-5">
           <SheetTitle>All questions</SheetTitle>
-          <Palette items={items} answers={answers} current={current} onJump={jump} />
-          <Button
-            onClick={() => {
-              setPaletteOpen(false)
-              setMode("review")
-            }}
-            disabled={!!lockState}
-          >
-            Review and submit
-          </Button>
+          {palette}
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={prefsOpen} onOpenChange={setPrefsOpen}>
+        <SheetContent side="right" className="w-full max-w-md overflow-y-auto p-5 sm:max-w-md">
+          <SheetTitle>Display settings</SheetTitle>
+          <p className="text-sm text-muted-foreground">Saved to your account. They apply to every exam you take.</p>
+          <PreferencesPanel value={prefs} onChange={setPrefs} />
         </SheetContent>
       </Sheet>
 
@@ -609,9 +463,9 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
             <AlertDialogTitle>Submit your exam?</AlertDialogTitle>
             <AlertDialogDescription>
               {unansweredIdx.length
-                ? `You have ${unansweredIdx.length} unanswered question${unansweredIdx.length === 1 ? "" : "s"}. `
-                : "All questions are answered. "}
-              After submitting you cannot change your answers.
+                ? `${unansweredIdx.length} question${unansweredIdx.length === 1 ? " is" : "s are"} unanswered. `
+                : "Every question is answered. "}
+              After submitting you cannot change any answer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

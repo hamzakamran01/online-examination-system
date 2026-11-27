@@ -1,6 +1,5 @@
 "use client"
 import { useState } from "react"
-import { Panel, PanelHeader } from "@/components/shell/page-header"
 import { NativeSelect } from "@/components/shell/common"
 import { toast } from "sonner"
 import { preferencesSchema, type Preferences } from "@/lib/validation/workspace"
@@ -34,12 +33,11 @@ export function PreferencesPanel({ value, onChange }: { value: Preferences; onCh
     }
   }
   return (
-    <Panel>
-      <PanelHeader title="Workspace preferences" />
-      <fieldset disabled={busy} className="grid gap-4 p-4 sm:grid-cols-2">
+    <div className="mt-2">
+      <fieldset disabled={busy} className="flex flex-col gap-5">
         <legend className="sr-only">Workspace preferences</legend>
-        <label>
-          Text size
+        <label className="flex flex-col gap-1.5 text-sm font-medium">
+          
           <NativeSelect
             value={value.fontScale}
             onChange={(e) => change({ ...value, fontScale: Number(e.target.value) as Preferences["fontScale"] })}
@@ -51,8 +49,8 @@ export function PreferencesPanel({ value, onChange }: { value: Preferences; onCh
             ))}
           </NativeSelect>
         </label>
-        <label>
-          Theme
+        <label className="flex flex-col gap-1.5 text-sm font-medium">
+          
           <NativeSelect
             value={value.theme}
             onChange={(e) => change({ ...value, theme: e.target.value as Preferences["theme"] })}
@@ -66,8 +64,8 @@ export function PreferencesPanel({ value, onChange }: { value: Preferences; onCh
             )}
           </NativeSelect>
         </label>
-        <label>
-          Questions
+        <label className="flex flex-col gap-1.5 text-sm font-medium">
+          
           <NativeSelect
             value={value.layout}
             onChange={(e) => change({ ...value, layout: e.target.value as Preferences["layout"] })}
@@ -76,8 +74,8 @@ export function PreferencesPanel({ value, onChange }: { value: Preferences; onCh
             <option value="scroll">All questions in a scrolling list</option>
           </NativeSelect>
         </label>
-        <label>
-          Question palette
+        <label className="flex flex-col gap-1.5 text-sm font-medium">
+          
           <NativeSelect
             value={value.paletteSide}
             onChange={(e) => change({ ...value, paletteSide: e.target.value as Preferences["paletteSide"] })}
@@ -87,9 +85,9 @@ export function PreferencesPanel({ value, onChange }: { value: Preferences; onCh
           </NativeSelect>
         </label>
       </fieldset>
-      <p className="px-4 pb-3 text-sm" role="status">
-        {busy ? "Saving..." : ""}
+      <p className="mt-3 min-h-5 text-xs text-muted-foreground" role="status">
+        {busy ? "Saving" : ""}
       </p>
-    </Panel>
+    </div>
   )
 }

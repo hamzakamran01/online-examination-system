@@ -1,63 +1,56 @@
-.workspace-theme-light,
-.workspace-theme-system {
+/*
+ * Workspace theme scopes (S-4.7). Applied to the exam hall wrapper only.
+ * "dark" reuses the global .dark tokens; "light-scope" forces light even when
+ * the app is in dark mode; "contrast" is a high-contrast scheme (WCAG AAA text).
+ */
+.light-scope {
   color-scheme: light;
-  --background: #fafafa;
-  --foreground: #181821;
-  --card: white;
-  --muted: #f0f0f4;
-  --muted-foreground: #505064;
-  --primary: #4939aa;
-  --primary-foreground: white;
-  --border: #d2d2dc;
-  --input: var(--border);
-  --card-foreground: var(--foreground);
-  --popover: var(--card);
-  --popover-foreground: var(--foreground);
-  --canvas: var(--background);
+  --canvas: oklch(0.972 0.005 235);
+  --background: oklch(0.972 0.005 235);
+  --surface: oklch(1 0 0);
+  --surface-sunken: oklch(0.955 0.006 235);
+  --foreground: oklch(0.2 0.022 235);
+  --muted: oklch(0.952 0.006 235);
+  --muted-foreground: oklch(0.47 0.022 235);
+  --border: oklch(0.905 0.008 235);
+  --border-strong: oklch(0.84 0.012 235);
+  --primary: oklch(0.47 0.1 192);
+  --primary-foreground: oklch(0.99 0.004 192);
 }
-@media (prefers-color-scheme: dark) {
-  .workspace-theme-system {
-    color-scheme: dark;
-    --background: #181820;
-    --foreground: #fafafa;
-    --card: #23232d;
-    --muted: #30303c;
-    --muted-foreground: #c9c9d3;
-    --primary: #bbaaff;
-    --primary-foreground: #171329;
-    --border: #606073;
-  }
-}
-.workspace-theme-dark {
-  color-scheme: dark;
-}
+
 .contrast {
   color-scheme: dark;
-  --background: #000;
   --canvas: #000;
+  --background: #000;
+  --surface: #000;
+  --surface-sunken: #0d0d0d;
   --card: #000;
   --popover: #000;
   --secondary: #141414;
-  --muted: #141414;
-  --accent: #212121;
+  --muted: #161616;
+  --accent: #1f1f1f;
   --foreground: #fff;
   --card-foreground: #fff;
   --popover-foreground: #fff;
   --secondary-foreground: #fff;
-  --muted-foreground: #eee;
+  --muted-foreground: #e6e6e6;
+  --subtle-foreground: #d0d0d0;
   --accent-foreground: #fff;
-  --primary: #ffed70;
+  --primary: #ffe600;
+  --primary-hover: #fff27a;
   --primary-foreground: #000;
-  --brand-text: #ffed70;
+  --brand-soft: rgb(255 230 0 / 0.18);
+  --brand-softer: rgb(255 230 0 / 0.1);
+  --brand-text: #ffe600;
   --border: #fff;
+  --border-strong: #fff;
   --input: #fff;
-  --ring: #0ff;
-  --success-text: #a8ffc1;
-  --danger-text: #ffb9b9;
-  --warning-text: #fff19c;
-  --info-text: #bdefff;
-}
-[class*="workspace-theme-"] {
-  background-color: var(--background);
-  color: var(--foreground);
+  --ring: #00e5ff;
+  --success-text: #8dffb0;
+  --danger-text: #ffb3b3;
+  --warning-text: #ffe680;
+  --time: #ffd24d;
+  --time-text: #ffe680;
+  --time-soft: rgb(255 210 77 / 0.2);
+  --info-text: #b3ecff;
 }

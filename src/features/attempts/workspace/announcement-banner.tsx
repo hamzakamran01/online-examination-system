@@ -23,7 +23,7 @@ export function AnnouncementBanner({
   const latest = visible[0]
 
   return (
-    <div className="mx-auto mt-4 max-w-7xl px-4 sm:px-6">
+    <div className="mx-auto mt-4 max-w-[1240px] px-4 sm:px-6">
       <section aria-label="Announcements from your examiner" className="rounded-xl border border-info/30 bg-info-soft text-sm text-info-text">
         {latest ? (
           <div role="status" aria-live="polite" className="flex gap-3 p-4">

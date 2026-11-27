@@ -1,12 +1,12 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { CalendarClock, CheckCircle2, ClipboardList, Clock, Hourglass, Lock, PlayCircle } from "lucide-react"
+import { ArrowRight, CalendarClock, CheckCircle2, ClipboardList, Clock, FileCheck2, Lock, PlayCircle } from "lucide-react"
 import { requirePageRole } from "@/server/auth/guards"
 import { listCandidateExams } from "@/server/services/attempts"
-import { PageHeader } from "@/components/shell/page-header"
-import { Badge } from "@/components/ui/badge"
+import { PageHeader, SectionTitle } from "@/components/shell/page-header"
 import { buttonVariants } from "@/components/ui/button"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { Countdown } from "@/features/attempts/countdown"
 import { fmtDateTime, fmtDuration, fmtMarks } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
@@ -14,94 +14,150 @@ export const metadata: Metadata = { title: "My exams" }
 
 type Item = Awaited<ReturnType<typeof listCandidateExams>>[number]
 
-function ExamCard({ e }: { e: Item }) {
+function Status({ e }: { e: Item }) {
+  const a = e.access
+  const map = {
+    open: ["Open now", "bg-success-soft text-success-text"],
+    resume: ["In progress", "bg-time-soft text-time-text"],
+    upcoming: ["Upcoming", "bg-info-soft text-info-text"],
+    submitted: [e.resultsPublishedAt ? "Result published" : "Submitted", e.resultsPublishedAt ? "bg-brand-soft text-brand-text" : "bg-muted text-muted-foreground"],
+    closed: ["Missed", "bg-danger-soft text-danger-text"],
+  } as const
+  const [label, cls] = map[a.kind]
+  return <span className={cn("inline-flex h-6 shrink-0 items-center rounded-full px-2.5 text-xs font-medium", cls)}>{label}</span>
+}
+
+/** The single most relevant exam: something to resume, then open, then the next upcoming. */
+function pickFocus(items: Item[]) {
+  return items.find((e) => e.access.kind === "resume") ?? items.find((e) => e.access.kind === "open") ?? items.find((e) => e.access.kind === "upcoming")
+}
+
+function Focus({ e }: { e: Item }) {
   const a = e.access
   return (
-    <li className="flex flex-col gap-4 rounded-xl border bg-card p-5 shadow-panel">
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="font-medium">{e.title}</h3>
-        {a.kind === "open" && <Badge variant="success">Open now</Badge>}
-        {a.kind === "resume" && <Badge variant="warning">In progress</Badge>}
-        {a.kind === "upcoming" && <Badge variant="info">Upcoming</Badge>}
-        {a.kind === "submitted" && <Badge variant="secondary">Submitted</Badge>}
-        {a.kind === "closed" && <Badge variant="muted">Missed</Badge>}
-      </div>
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-        <div className="col-span-2 flex items-center gap-2 text-muted-foreground">
-          <CalendarClock className="size-4 shrink-0" aria-hidden />
-          <span>
-            <span className="sr-only">Window: </span>
-            {fmtDateTime(e.startsAt)} to {fmtDateTime(e.endsAt)}
-          </span>
+    <section aria-labelledby="focus-title" className="mb-10 overflow-hidden rounded-xl border bg-surface">
+      <div className="grid gap-6 p-6 sm:p-8 md:grid-cols-[1fr_auto] md:items-center">
+        <div className="min-w-0">
+          <div className="mb-3 flex items-center gap-2">
+            <Status e={e} />
+            <span className="text-sm text-muted-foreground">Up next</span>
+          </div>
+          <h2 id="focus-title" className="font-display text-2xl font-semibold sm:text-[1.75rem]">
+            {e.title}
+          </h2>
+          <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <CalendarClock className="size-4" aria-hidden />
+              <dt className="sr-only">Window</dt>
+              <dd>
+                {fmtDateTime(e.startsAt)} to {fmtDateTime(e.endsAt)}
+              </dd>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Clock className="size-4" aria-hidden />
+              <dt className="sr-only">Duration</dt>
+              <dd>{fmtDuration(e.durationMin)}</dd>
+            </div>
+            <div>
+              <dt className="sr-only">Paper</dt>
+              <dd>
+                {e.questionCount} questions, {fmtMarks(e.totalMarks)} marks
+              </dd>
+            </div>
+          </dl>
         </div>
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Clock className="size-4" aria-hidden />
-          {fmtDuration(e.durationMin)}
-        </div>
-        <div className="text-muted-foreground">
-          {e.questionCount} questions · {fmtMarks(e.totalMarks)} marks
-        </div>
-      </dl>
-      <div className="mt-auto">
-        {a.kind === "open" && (
-          <Link href={`/candidate/exams/${e.id}`} className={cn(buttonVariants(), "w-full sm:w-auto")}>
-            <PlayCircle />
-            View instructions and start
-          </Link>
-        )}
-        {a.kind === "resume" && (
-          <Link href={`/attempt/${a.attemptId}`} className={cn(buttonVariants(), "w-full sm:w-auto")}>
-            <PlayCircle />
-            Resume exam
-          </Link>
-        )}
-        {a.kind === "upcoming" && (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Lock className="size-4" aria-hidden />
-            Opens {fmtDateTime(a.opensAt)}.{" "}
-            <Link href={`/candidate/exams/${e.id}`} className="font-medium text-primary hover:underline">
+        <div className="flex flex-col items-start gap-3 md:items-end">
+          {a.kind === "upcoming" && (
+            <div className="md:text-right">
+              <p className="text-xs text-muted-foreground">Opens in</p>
+              <Countdown to={a.opensAt.toISOString()} className="font-mono text-2xl font-semibold tabular-nums" />
+            </div>
+          )}
+          {a.kind === "resume" ? (
+            <Link href={`/attempt/${a.attemptId}`} className={buttonVariants({ size: "lg" })}>
+              <PlayCircle />
+              Resume exam
+            </Link>
+          ) : a.kind === "open" ? (
+            <Link href={`/candidate/exams/${e.id}`} className={buttonVariants({ size: "lg" })}>
+              Read instructions and start
+              <ArrowRight />
+            </Link>
+          ) : (
+            <Link href={`/candidate/exams/${e.id}`} className={buttonVariants({ variant: "outline", size: "lg" })}>
               Read instructions
             </Link>
-          </p>
-        )}
-        {a.kind === "submitted" && (
-          <div className="space-y-3">
-            <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CheckCircle2 className="size-4 text-success-text" aria-hidden />
-              {e.resultsPublishedAt ? "Your result is published." : "Submitted. Your score appears once your examiner publishes results."}
-            </p>
-            <Link
-              href={`/candidate/results/${a.attemptId}`}
-              className={cn(buttonVariants({ variant: e.resultsPublishedAt ? "default" : "outline" }), "w-full sm:w-auto")}
-            >
-              {e.resultsPublishedAt ? "View result" : "View my answers"}
+          )}
+        </div>
+      </div>
+      {a.kind === "resume" && (
+        <p className="border-t bg-time-soft px-6 py-2.5 text-sm text-time-text sm:px-8">
+          Your timer is running on the server. Resume to continue where you left off; saved answers are waiting.
+        </p>
+      )}
+    </section>
+  )
+}
+
+function Row({ e }: { e: Item }) {
+  const a = e.access
+  const href =
+    a.kind === "resume"
+      ? `/attempt/${a.attemptId}`
+      : a.kind === "submitted"
+        ? `/candidate/results/${a.attemptId}`
+        : a.kind === "closed"
+          ? null
+          : `/candidate/exams/${e.id}`
+  const action =
+    a.kind === "resume" ? "Resume" : a.kind === "open" ? "Start" : a.kind === "upcoming" ? "Instructions" : a.kind === "submitted" ? (e.resultsPublishedAt ? "View result" : "My answers") : null
+  return (
+    <li className="relative flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-muted/40 sm:flex-row sm:items-center">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start gap-2">
+          {href ? (
+            <Link href={href} className="font-medium after:absolute after:inset-0 after:content-['']">
+              {e.title}
             </Link>
-          </div>
+          ) : (
+            <span className="font-medium">{e.title}</span>
+          )}
+        </div>
+        <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+          <span>{fmtDateTime(e.startsAt)}</span>
+          <span>{fmtDuration(e.durationMin)}</span>
+          <span>{fmtMarks(e.totalMarks)} marks</span>
+        </p>
+      </div>
+      <div className="flex items-center gap-3">
+        <Status e={e} />
+        {action && (
+          <span className="inline-flex w-28 items-center justify-end gap-1 text-sm font-medium whitespace-nowrap text-brand-text">
+            {action}
+            <ArrowRight className="size-3.5" aria-hidden />
+          </span>
         )}
-        {a.kind === "closed" && <p className="text-sm text-muted-foreground">The window closed before you started.</p>}
       </div>
     </li>
   )
 }
 
-function Group({ title, hint, icon: Icon, items }: { title: string; hint: string; icon: typeof Hourglass; items: Item[] }) {
+function Group({ title, hint, items, icon: Icon }: { title: string; hint: string; items: Item[]; icon: typeof Lock }) {
+  if (!items.length) return null
   return (
-    <section aria-labelledby={`h-${title}`}>
-      <div className="mb-3 flex items-center gap-2">
-        <Icon className="size-4 text-muted-foreground" aria-hidden />
-        <h2 id={`h-${title}`} className="font-semibold">
-          {title} <span className="font-normal text-muted-foreground">({items.length})</span>
-        </h2>
-      </div>
-      {items.length ? (
-        <ul className="grid gap-3 md:grid-cols-2">
-          {items.map((e) => (
-            <ExamCard key={e.id} e={e} />
-          ))}
-        </ul>
-      ) : (
-        <p className="rounded-xl border border-dashed px-5 py-6 text-sm text-muted-foreground">{hint}</p>
-      )}
+    <section aria-label={title}>
+      <SectionTitle hint={hint}>
+        <span className="inline-flex items-center gap-2">
+          <Icon className="size-4 text-muted-foreground" aria-hidden />
+          {title}
+          <span className="text-sm font-normal text-muted-foreground tabular-nums">{items.length}</span>
+        </span>
+      </SectionTitle>
+      <ul className="divide-y overflow-hidden rounded-xl border bg-surface">
+        {items.map((e) => (
+          <Row key={e.id} e={e} />
+        ))}
+      </ul>
     </section>
   )
 }
@@ -109,29 +165,49 @@ function Group({ title, hint, icon: Icon, items }: { title: string; hint: string
 export default async function CandidateHome() {
   const actor = await requirePageRole("candidate")
   const exams = await listCandidateExams(actor)
-  const available = exams.filter((e) => e.access.kind === "open" || e.access.kind === "resume")
-  const upcoming = exams.filter((e) => e.access.kind === "upcoming")
-  const completed = exams.filter((e) => e.access.kind === "submitted" || e.access.kind === "closed").reverse()
+  const focus = pickFocus(exams)
+  const rest = exams.filter((e) => e !== focus)
+  const now = rest.filter((e) => e.access.kind === "open" || e.access.kind === "resume")
+  const upcoming = rest.filter((e) => e.access.kind === "upcoming")
+  const done = rest.filter((e) => e.access.kind === "submitted" || e.access.kind === "closed").reverse()
+  const published = exams.filter((e) => e.access.kind === "submitted" && e.resultsPublishedAt).length
 
   return (
     <>
-      <PageHeader title={`Hello, ${actor.name.split(" ")[0]}`} description="Exams you are enrolled in. Times are shown in your local timezone." />
+      <PageHeader
+        title={`Hello, ${actor.name.split(" ")[0]}`}
+        description={
+          published
+            ? `${published} result${published === 1 ? " is" : "s are"} published. Times are shown in your timezone; deadlines follow the server clock.`
+            : "Your examinations. Times are shown in your timezone; deadlines follow the server clock."
+        }
+      />
       {!exams.length ? (
-        <Empty className="rounded-xl border bg-card py-16">
+        <Empty className="rounded-xl border bg-surface py-16">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <ClipboardList />
             </EmptyMedia>
             <EmptyTitle>No exams assigned yet</EmptyTitle>
-            <EmptyDescription>When your examiner enrolls you, exams appear here with their schedule.</EmptyDescription>
+            <EmptyDescription>When your examiner enrolls you, your exams appear here with their schedule.</EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (
-        <div className="space-y-10">
-          <Group title="Available now" hint="Nothing is open right now." icon={PlayCircle} items={available} />
-          <Group title="Upcoming" hint="No upcoming exams." icon={Hourglass} items={upcoming} />
-          <Group title="Completed" hint="Completed exams will appear here." icon={CheckCircle2} items={completed} />
-        </div>
+        <>
+          {focus ? (
+            <Focus e={focus} />
+          ) : (
+            <p className="mb-10 flex items-center gap-2 rounded-xl border bg-surface px-5 py-4 text-sm text-muted-foreground">
+              <CheckCircle2 className="size-4 text-success-text" aria-hidden />
+              Nothing is open or scheduled right now.
+            </p>
+          )}
+          <div className="flex flex-col gap-8">
+            <Group title="Also available" hint="Open now" items={now} icon={PlayCircle} />
+            <Group title="Upcoming" hint="Instructions are available before the window opens" items={upcoming} icon={Lock} />
+            <Group title="Completed" hint="Your answers, and results once published" items={done} icon={FileCheck2} />
+          </div>
+        </>
       )}
     </>
   )

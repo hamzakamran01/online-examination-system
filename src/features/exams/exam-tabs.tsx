@@ -17,7 +17,7 @@ export function ExamTabs({ examId }: { examId: string }) {
     { href: `${base}/analytics`, label: "Analytics" },
   ]
   return (
-    <nav aria-label="Exam sections" className="-mx-4 overflow-x-auto border-b px-4 sm:mx-0 sm:px-0">
+    <nav aria-label="Exam sections" className="scrollbar-none -mx-4 overflow-x-auto border-b px-4 sm:mx-0 sm:px-0">
       <ul className="flex min-w-max gap-1">
         {tabs.map((t) => {
           const active = t.href === base ? pathname === base : pathname.startsWith(t.href)
@@ -32,7 +32,7 @@ export function ExamTabs({ examId }: { examId: string }) {
                 )}
               >
                 {t.label}
-                {active && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary" aria-hidden />}
+                {active && <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-foreground" aria-hidden />}
               </Link>
             </li>
           )

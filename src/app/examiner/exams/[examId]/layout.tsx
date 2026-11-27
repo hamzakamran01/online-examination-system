@@ -6,7 +6,7 @@ import { AppError } from "@/server/errors"
 import { effectiveStatus } from "@/lib/domain/exam-status"
 import { fmtDateTime, fmtDuration, fmtMarks } from "@/lib/format"
 import { PageHeader } from "@/components/shell/page-header"
-import { ExamStatusBadge } from "@/components/shell/status"
+import { Lifecycle, stageOf } from "@/components/shell/lifecycle"
 import { ExamTabs } from "@/features/exams/exam-tabs"
 import { ExamLifecycleActions } from "@/features/exams/lifecycle-actions"
 
@@ -23,7 +23,7 @@ export default async function ExamLayout({ children, params }: LayoutProps<"/exa
     <>
       <PageHeader
         back={{ href: "/examiner", label: "Exams" }}
-        eyebrow={<ExamStatusBadge status={status} />}
+        eyebrow={<Lifecycle stage={stageOf(status, Boolean(exam.resultsPublishedAt))} />}
         title={exam.title}
         description={
           <span className="flex flex-wrap gap-x-4 gap-y-1">

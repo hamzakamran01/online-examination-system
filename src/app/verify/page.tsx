@@ -13,10 +13,13 @@ export default async function Page({ searchParams }: PageProps<"/verify">) {
   if (/^[A-Za-z0-9_-]{22}$/.test(value)) redirect("/verify/" + value)
   const invalid = code !== undefined
   return (
-    <main id="main" className="mx-auto max-w-lg px-4 py-12">
-      <Panel className="space-y-5 p-5 sm:p-7">
-        <Logo />
-        <h1 className="text-2xl font-semibold">Verify a report</h1>
+    <main id="main" className="flex min-h-dvh flex-col items-center px-4 py-10 sm:py-16">
+      <Logo className="mb-10" />
+      <Panel className="w-full max-w-md space-y-5 p-6 sm:p-8">
+        <div>
+          <h1 className="font-display text-2xl font-semibold">Verify a result report</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">Scan the QR code on a report, or type the code printed beneath it.</p>
+        </div>
         <form className="space-y-4" action="/verify">
           <Field>
             <FieldLabel htmlFor="report-code">Verification code</FieldLabel>
@@ -27,6 +30,7 @@ export default async function Page({ searchParams }: PageProps<"/verify">) {
               required
               maxLength={64}
               autoCapitalize="none"
+              className="h-11 font-mono"
               spellCheck={false}
               aria-invalid={invalid}
               aria-describedby={invalid ? "code-help code-error" : "code-help"}
@@ -38,7 +42,7 @@ export default async function Page({ searchParams }: PageProps<"/verify">) {
               </p>
             )}
           </Field>
-          <Button type="submit" className="min-h-11">
+          <Button type="submit" className="h-11 w-full">
             Verify report
           </Button>
         </form>

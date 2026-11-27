@@ -1,80 +1,126 @@
 import Link from "next/link"
-import { Panel, PanelHeader, PageHeader, Stat } from "@/components/shell/page-header"
+import { AlertTriangle, ArrowUpRight, CheckCircle2, History } from "lucide-react"
+import { Panel, PanelHeader, PageHeader, Stat, MetricStrip, SectionTitle } from "@/components/shell/page-header"
 import { requirePageRole } from "@/server/auth/guards"
 import { getPlatformOverview } from "@/server/services/platform"
 import { ActivityChart } from "@/features/platform/activity-chart"
 import { fmtDateTime } from "@/lib/format"
+
 export const metadata = { title: "Platform overview" }
+
+const describe = (action: string) => {
+  const s = action.replace(/[._]/g, " ")
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
 
 export default async function Page() {
   const actor = await requirePageRole("admin")
   const { stats, attention, days, audit } = await getPlatformOverview(actor)
+  const s = stats as Record<string, number>
+  const total14 = days.reduce((n, d) => n + d.count, 0)
+
   return (
     <>
-      <PageHeader title="Platform overview" />
-      <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {Object.entries(stats).map(([label, value]) => (
-            <Stat key={label} label={label} value={value} />
-          ))}
+      <PageHeader title="Platform overview" description="People, examinations and activity across the whole institution, with anything that needs an administrator." />
+
+      <div className="flex flex-col gap-8">
+        <section aria-label="Activity now">
+          <SectionTitle hint="Live from the server">Right now</SectionTitle>
+          <MetricStrip className="lg:grid-cols-3">
+            <Stat label="Candidates writing" value={s["Candidates writing"]} tone={s["Candidates writing"] ? "success" : undefined} hint="Active attempts" />
+            <Stat label="Submitted today" value={s["Submitted today"]} hint="Real attempts, sandbox excluded" />
+            <Stat
+              label="Written answers to grade"
+              value={s["Written answers awaiting grading"]}
+              tone={s["Written answers awaiting grading"] ? "time" : undefined}
+              hint="Across all examiners"
+            />
+          </MetricStrip>
+        </section>
+
+        <div className="grid gap-8 lg:grid-cols-2">
+          <section aria-label="People">
+            <SectionTitle
+              hint="Active accounts"
+              action={
+                <Link href="/admin" className="text-sm font-medium text-brand-text hover:underline">
+                  Manage users
+                </Link>
+              }
+            >
+              People
+            </SectionTitle>
+            <MetricStrip className="lg:grid-cols-2">
+              <Stat label="Candidates" value={s["Active candidates"]} />
+              <Stat label="Examiners" value={s["Active examiners"]} />
+              <Stat label="Administrators" value={s["Active administrators"]} />
+              <Stat label="Deactivated" value={s["Deactivated accounts"]} tone={s["Deactivated accounts"] ? "warning" : undefined} />
+            </MetricStrip>
+          </section>
+          <section aria-label="Examinations">
+            <SectionTitle hint="By lifecycle stage">Examinations</SectionTitle>
+            <MetricStrip className="lg:grid-cols-2">
+              <Stat label="Ongoing" value={s["Ongoing exams"]} tone={s["Ongoing exams"] ? "success" : undefined} />
+              <Stat label="Scheduled" value={s["Scheduled exams"]} />
+              <Stat label="Drafts" value={s["Draft exams"]} />
+              <Stat label="Completed" value={s["Completed exams"]} />
+            </MetricStrip>
+          </section>
         </div>
-        <Panel>
-          <PanelHeader title="Needs attention" />
-          {attention.length ? (
-            <ul className="list-disc space-y-2 px-9 py-4">
-              {attention.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="p-4 text-muted-foreground">No issues to review.</p>
-          )}
-        </Panel>
-        <Panel>
-          <PanelHeader title="Submissions in the past 14 days" />
-          <div className="p-3">
-            {days.some((day) => day.count) ? (
-              <ActivityChart days={days} />
-            ) : (
-              <p className="text-muted-foreground">No submissions in this period.</p>
-            )}
-          </div>
-          {days.some((day) => day.count) && (
-            <details className="px-4 pb-4">
-              <summary>Daily submission counts</summary>
-              <dl className="mt-2 grid grid-cols-2 gap-1">
-                {days.map((day) => (
-                  <div key={day.date} className="contents">
-                    <dt>{day.date}</dt>
-                    <dd>{day.count}</dd>
-                  </div>
+
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+          <Panel>
+            <PanelHeader title="Submissions, last 14 days" description={`${total14} submitted attempt${total14 === 1 ? "" : "s"}. Sandbox previews excluded.`} />
+            <div className="p-4">
+              {total14 ? <ActivityChart days={days} /> : <p className="py-10 text-center text-sm text-muted-foreground">No submissions in this period.</p>}
+            </div>
+          </Panel>
+
+          <Panel>
+            <PanelHeader title="Needs attention" description={attention.length ? `${attention.length} item${attention.length === 1 ? "" : "s"}` : "Nothing to review"} />
+            {attention.length ? (
+              <ul className="divide-y">
+                {attention.map((item, i) => (
+                  <li key={i} className="flex gap-3 px-5 py-3 text-sm">
+                    <AlertTriangle className="mt-0.5 size-4 shrink-0 text-time-text" aria-hidden />
+                    {item}
+                  </li>
                 ))}
-              </dl>
-            </details>
-          )}
-        </Panel>
+              </ul>
+            ) : (
+              <p className="flex items-center gap-2 px-5 py-6 text-sm text-muted-foreground">
+                <CheckCircle2 className="size-4 text-success-text" aria-hidden />
+                Every exam is staffed, graded and running normally.
+              </p>
+            )}
+          </Panel>
+        </div>
+
         <Panel>
           <PanelHeader
             title="Latest audit entries"
             actions={
-              <Link href="/admin/audit" className="inline-flex min-h-11 items-center text-sm text-primary underline">
-                View audit log
+              <Link href="/admin/audit" className="inline-flex items-center gap-1 text-sm font-medium text-brand-text hover:underline">
+                Full audit log
+                <ArrowUpRight className="size-3.5" aria-hidden />
               </Link>
             }
           />
           {audit.length ? (
-            <ul className="divide-y">
+            <ol className="divide-y">
               {audit.map((row) => (
-                <li key={row.id} className="break-words p-4 text-sm">
-                  <strong>{row.action}</strong>
-                  <p className="text-muted-foreground">
-                    {row.actorName ?? "System"} · {fmtDateTime(row.createdAt)}
-                  </p>
+                <li key={row.id} className="flex items-center gap-3 px-5 py-3 text-sm">
+                  <History className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="min-w-0 flex-1">
+                    <span className="font-medium">{describe(row.action)}</span>
+                    <span className="text-muted-foreground"> by {row.actorName ?? "System"}</span>
+                  </span>
+                  <time className="shrink-0 text-xs text-muted-foreground tabular-nums">{fmtDateTime(row.createdAt)}</time>
                 </li>
               ))}
-            </ul>
+            </ol>
           ) : (
-            <p className="p-4 text-muted-foreground">No audit entries yet.</p>
+            <p className="px-5 py-6 text-sm text-muted-foreground">No audit entries yet.</p>
           )}
         </Panel>
       </div>
