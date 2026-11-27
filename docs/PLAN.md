@@ -1,6 +1,6 @@
 # Build plan
 
-**Status:** Phases 0 and 1 verified | P2.1 grading and P2.2 results done and verified (38 grading checks) | next P2.3 to P2.5 monitoring | Codex: CX-4 onward
+**Status:** Phases 0 and 1 verified | P2.1, P2.2 done | P2.3 to P2.5 and P3.1, P3.2 built on `feat/monitoring-resilience`, verified locally (40 service checks + browser walkthrough), awaiting merge and live check | next P2.10, P3.3 | `[~]` = built and verified locally, not yet on the live URL
 
 Rules: tick only when it works end to end on the live URL. "built" = code merged, not yet verified in a browser.
 Each task maps to SPEC IDs. Brief sections define WHAT we build; this order follows dependencies and marks at risk.
@@ -38,9 +38,9 @@ Each task maps to SPEC IDs. Brief sections define WHAT we build; this order foll
    - [x] P2.1 Manual grading queue for written answers, marks validated 0..max, feedback, totals recalculated in a transaction, per-answer grading history (previous mark, new mark, grader, comment, time) recorded in audit_log and shown under each answer (C-3.7.2, C-3.7.3, T-6.2c)
    - [x] P2.2 Results review screen, publish gated on all graded, candidate result page, completed exams retained read-only; regrade after publication only with a reason (totals recalculated, old report code shows Replaced); candidates can view their own submitted answers right after submitting, without marks or keys until publication (C-3.8.1, C-3.8.3)
 2. Core monitoring (moved up from Phase 3 to protect core marks)
-   - [ ] P2.3 Live monitor, polled every 5 s: per candidate status NOT_STARTED / WRITING / DISCONNECTED (no save or heartbeat for 30 s) / SUBMITTED, answered count, time left, last seen, signal count; summary counts by status; lazy-finalize expired attempts before building the view (C-3.6.1)
-   - [ ] P2.4 Announcements: examiner posts, candidates see within one poll (C-3.6.2)
-   - [ ] P2.5 Incident log: client signals (tab away counted only when >= 1 s, with server-recorded duration; fullscreen exit; offline; reconnect) + server events (device change, late save rejected), "signal for review" wording and disclaimer. Signals NEVER end or penalise an attempt. Client-reported signals are rate limited and capped at 200 per attempt (C-3.6.3, T-6.1)
+   - [~] P2.3 Live monitor, polled every 5 s: per candidate status NOT_STARTED / WRITING / DISCONNECTED (no save or heartbeat for 30 s) / SUBMITTED, answered count, time left, last seen, signal count; summary counts by status; lazy-finalize expired attempts before building the view (C-3.6.1)
+   - [~] P2.4 Announcements: examiner posts, candidates see within one poll (C-3.6.2)
+   - [~] P2.5 Incident log: client signals (tab away counted only when >= 1 s, with server-recorded duration; fullscreen exit; offline; reconnect) + server events (device change, late save rejected), "signal for review" wording and disclaimer. Signals NEVER end or penalise an attempt. Client-reported signals are rate limited and capped at 200 per attempt (C-3.6.3, T-6.1)
 3. Integrate Codex branch (merge `codex/secondary`, review, wire up)
    - [ ] P2.6 Analytics tab + admin read-only access (C-3.8.2, S-4.5) - Codex CX-2 + CX-5 (discrimination index, quality flags)
    - [ ] P2.7 Imports link + enroll-from-import (S-4.4a, S-4.4b) - Codex CX-1
@@ -49,8 +49,8 @@ Each task maps to SPEC IDs. Brief sections define WHAT we build; this order foll
 4. - [ ] P2.10 Network banner and per-question sync markers (S-4.1)
 
 ## Phase 3: innovation 5.3 (see INNOVATION.md)
-- [ ] P3.1 Heartbeat: server-measured connection gaps recorded as `connection_gap` with duration (I-5.3)
-- [ ] P3.2 Examiner grants extension: default = measured gap, reason required, total capped (15 min per attempt), attempt row locked while granting, audit log, candidate notified, deadline recomputed (I-5.3)
+- [~] P3.1 Heartbeat: server-measured connection gaps recorded as `connection_gap` with duration (I-5.3)
+- [~] P3.2 Examiner grants extension: default = measured gap, reason required, total capped (15 min per attempt), attempt row locked while granting, audit log, candidate notified, deadline recomputed (I-5.3)
 - [ ] P3.3 T-2 min unsynced-answers warning; resume-on-another-device demo path (I-5.3)
 - [ ] P3.4 (stretch) Fair paper generation: exam blueprint = N questions per (type, difficulty, marks); each candidate draws the least-used questions first with random ties, so every paper has identical difficulty mix and total marks (I-5.2)
 

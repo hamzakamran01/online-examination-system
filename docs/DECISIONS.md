@@ -45,3 +45,16 @@ Append new entries at the bottom. Format: decision, why, alternative rejected.
 - Saves are accepted until deadline_at + 5 s; the candidate UI locks at zero, so only requests already in transit benefit. Expired attempts are finalized after the grace with submitted_at = deadline_at.
 - Why: an honest last answer sent at 0:00 must not be lost to network latency; 5 s gives no usable extra time. Three reference repos use the same pattern.
 - Rejected: strict 0 s cutoff (drops in-flight answers), 30 s grace (reads as extra time, against brief 5.3).
+
+## D11 Signals travel with the heartbeat (decided)
+- Client signals (tab away, full screen exit, offline period, reconnect) are queued in localStorage and sent in the 15 s heartbeat body, not a separate events endpoint. One request per beat, and signals raised while offline arrive after reconnecting instead of being lost.
+- The heartbeat schema only accepts client signal types. Server-only events (connection_gap, device_change, late_save_rejected, extension_granted) cannot be forged by a client.
+- Durations are measured on the device with `performance.now()` (monotonic, immune to clock changes) and labelled "reported by the browser". The server stamps its own time on every event; outages are measured only from server timestamps.
+- Caps: tab switches under 1 s ignored; 200 client signals per attempt; repeated device_change within 2 min collapsed.
+
+## D12 Connection gaps and extensions (decided)
+- A silence over 45 s between server contacts (saves or heartbeats) is stored as `connection_gap` with its server-measured duration. Disconnected on the monitor = no contact for 30 s (two missed beats).
+- Extra time is never automatic. The examiner grants it (default pre-filled from the measured outage minus time already granted), reason required, whole minutes, 15 min total per attempt. The attempt row is locked so concurrent grants cannot pass the cap; ownership is checked without locking the exam row (avoids lock-order inversion with closeExam).
+- Only before the deadline: once time has run out the attempt is being finalized, so a grant would reopen a closed attempt.
+- The candidate learns the amount (toast, timer moves on the next heartbeat) but never the reason, which can contain personal details. Admins can read the monitor but not act (authz matrix: read all).
+- Rejected: pausing the timer while offline (pull the cable to gain time), automatic credit for gaps (same abuse), exam-wide announcement per extension (leaks one candidate's situation to everyone).

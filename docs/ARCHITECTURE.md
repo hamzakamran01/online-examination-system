@@ -96,8 +96,8 @@ Ownership: examiner rules check `exam.owner_id = user.id`. Candidate rules check
 | Exams | actions: createExam, updateExam, setExamQuestions, publishExam, closeExam | examiner owner |
 | Enrollment | actions: enroll, unenroll, importCandidates(preview, commit) | examiner owner, admin |
 | Attempt start | action: startAttempt(examId, {sandbox}) | candidate enrolled / examiner owner for sandbox |
-| Attempt runtime | `GET /api/attempts/[id]` state; `PUT /api/attempts/[id]/answers` batch with client_seq; `POST .../heartbeat` returns server now, deadline, announcements; `POST .../events`; `POST .../submit` idempotent; `PUT .../scratchpad` | candidate owner (or examiner for sandbox) |
-| Monitoring | `GET /api/exams/[id]/monitor` (polled); actions: announce, grantExtension | examiner owner |
+| Attempt runtime | `GET /api/attempts/[id]` state; `PUT /api/attempts/[id]/answers` batch with client_seq; `POST .../heartbeat` carries queued client signals and returns server now, deadline, announcements, granted extensions (D11); `POST .../submit` idempotent; `PUT .../scratchpad` | candidate owner (or examiner for sandbox) |
+| Monitoring | `GET /api/exams/[id]/monitor` (polled); `GET /api/exams/[id]/monitor/attempts/[attemptId]` timeline; actions: announce, grantExtension | examiner owner (admin read only) |
 | Grading | actions: gradeAnswer, recalcAttempt; publishResults | examiner owner |
 | Analytics | server components reading services (exam + question analytics) | examiner owner, admin |
 | Reports | `GET /api/reports/attempt/[id]` PDF; `GET /api/reports/exam/[id]` PDF | owner rules above |

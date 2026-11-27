@@ -56,9 +56,9 @@ Scoring notes from the brief: partial credit exists; non-functional placeholders
 
 | ID | Requirement | Acceptance criteria | Demo | Status |
 | --- | --- | --- | --- | --- |
-| C-3.6.1 | Examiners view active attempts, progress, events or incidents | Live table (polling) with answered count, time left, connection state, last seen, event count | Monitor while candidate answers | todo |
-| C-3.6.2 | Monitor exam status; send announcements to candidates during an exam | Post announcement; candidates see it within one poll interval as a non-blocking banner; history kept | Send announcement, appears in candidate tab | todo |
-| C-3.6.3 | Record and present incidents for review; indicators not conclusive evidence | Events logged with server time (tab hidden, fullscreen exit, offline gap, reconnect, device change); UI labels them "signals for review" with disclaimer | Show incident timeline with wording | todo |
+| C-3.6.1 | Examiners view active attempts, progress, events or incidents | Live table (polling) with answered count, time left, connection state, last seen, event count | Monitor while candidate answers | built, verified locally |
+| C-3.6.2 | Monitor exam status; send announcements to candidates during an exam | Post announcement; candidates see it within one poll interval as a non-blocking banner; history kept | Send announcement, appears in candidate tab | built, verified locally |
+| C-3.6.3 | Record and present incidents for review; indicators not conclusive evidence | Events logged with server time (tab hidden, fullscreen exit, offline gap, reconnect, device change); UI labels them "signals for review" with disclaimer | Show incident timeline with wording | built, verified locally |
 
 ## 3.7 Evaluation & Grading
 
@@ -94,7 +94,7 @@ Scoring notes from the brief: partial credit exists; non-functional placeholders
 
 | ID | Requirement | Acceptance criteria | Demo | Status |
 | --- | --- | --- | --- | --- |
-| I-5.3 | Reduce impact of outages, device and power failures without extra time or unfair advantage | Local answer journal + sync; server deadline; resume on any device; server-measured outage incidents; examiner-granted, audited extension only | Offline demo + device switch | todo |
+| I-5.3 | Reduce impact of outages, device and power failures without extra time or unfair advantage | Local answer journal + sync; server deadline; resume on any device; server-measured outage incidents; examiner-granted, audited extension only | Offline demo + device switch | in progress (journal, server deadline, resume, measured gaps, audited extensions built) |
 | I-5.2 | (stretch) Fairer randomized papers | Difficulty-balanced draw from bank per candidate with equal difficulty budget | Show two papers, equal difficulty score | todo |
 
 ## 6 Technical Requirements & Constraints

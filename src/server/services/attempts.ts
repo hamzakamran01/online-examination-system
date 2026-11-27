@@ -12,6 +12,7 @@ import {
   exams,
   questionOptions,
   questions,
+  timeExtensions,
   topics,
 } from "@/server/db/schema"
 import type { SessionUser } from "@/server/auth/guards"
@@ -20,9 +21,11 @@ import { scoreItem } from "@/server/domain/grading"
 import { effectiveStatus } from "@/lib/domain/exam-status"
 import type { AnswerKey, AnswerResponse, Paper, PaperItem } from "@/lib/domain/paper"
 import { saveAnswersSchema, type SaveAnswersInput } from "@/lib/validation/attempts"
+import { heartbeatSchema, type HeartbeatInput } from "@/lib/validation/monitoring"
 import { round2 } from "@/lib/format"
 import { getManagedExam } from "./exams"
 import { audit } from "./audit"
+import { recordClientSignals, touchAttempt } from "./presence"
 
 type AttemptRow = typeof attempts.$inferSelect
 
@@ -425,9 +428,7 @@ export async function saveAnswers(actor: SessionUser, attemptId: string, raw: Sa
         setWhere: sql`${answers.clientSeq} < excluded.client_seq`,
       })
 
-    if (a.lastClientId && a.lastClientId !== input.clientId)
-      await tx.insert(attemptEvents).values({ attemptId: a.id, type: "device_change", source: "server", detail: { note: "Saving from a different browser or device" } })
-    await tx.update(attempts).set({ lastSeenAt: now, lastClientId: input.clientId }).where(eq(attempts.id, a.id))
+    await touchAttempt(tx, a, input.clientId, now)
     return { kind: "ok" as const, deadlineAt: a.deadlineAt }
   })
 
@@ -437,6 +438,61 @@ export async function saveAnswers(actor: SessionUser, attemptId: string, raw: Sa
     acked: input.answers.map((x) => ({ itemId: x.itemId, seq: x.seq })),
     serverNow: new Date().toISOString(),
     deadlineAt: result.deadlineAt.toISOString(),
+  }
+}
+
+export type HeartbeatResult = {
+  status: AttemptRow["status"]
+  serverNow: string
+  deadlineAt: string
+  extensionSec: number
+  announcements: { id: string; body: string; createdAt: string }[]
+  extensions: { id: string; seconds: number; createdAt: string }[]
+}
+
+/**
+ * Workspace heartbeat (C-3.6.1, C-3.6.2, I-5.3). Marks the candidate as seen,
+ * records server-measured connection gaps and queued client signals, and
+ * returns server time, the current deadline (extensions move it),
+ * announcements and granted extensions. Expired attempts are finalized here.
+ */
+export async function heartbeat(actor: SessionUser, attemptId: string, raw: HeartbeatInput): Promise<HeartbeatResult> {
+  const input = heartbeatSchema.parse(raw)
+  const now = new Date()
+  const a = await db.transaction(async (tx) => {
+    const row = await lockOwnAttempt(tx, actor, attemptId)
+    if (row.status !== "in_progress") return row
+    if (pastGrace(row.deadlineAt, now)) {
+      await finalizeLocked(tx, row, "timeout", now)
+      return { ...row, status: "auto_submitted" as const }
+    }
+    await recordClientSignals(tx, row.id, input.signals, now)
+    await touchAttempt(tx, row, input.clientId, now)
+    return row
+  })
+
+  const [notes, ext] = await Promise.all([
+    db
+      .select({ id: announcements.id, body: announcements.body, createdAt: announcements.createdAt })
+      .from(announcements)
+      .where(eq(announcements.examId, a.examId))
+      .orderBy(desc(announcements.createdAt))
+      .limit(10),
+    // Candidates learn how much time was added, never the examiner's internal reason.
+    db
+      .select({ id: timeExtensions.id, seconds: timeExtensions.seconds, createdAt: timeExtensions.createdAt })
+      .from(timeExtensions)
+      .where(eq(timeExtensions.attemptId, a.id))
+      .orderBy(asc(timeExtensions.createdAt)),
+  ])
+
+  return {
+    status: a.status,
+    serverNow: new Date().toISOString(),
+    deadlineAt: a.deadlineAt.toISOString(),
+    extensionSec: a.extensionSec,
+    announcements: notes.map((n) => ({ id: n.id, body: n.body, createdAt: n.createdAt.toISOString() })),
+    extensions: ext.map((x) => ({ id: x.id, seconds: x.seconds, createdAt: x.createdAt.toISOString() })),
   }
 }
 

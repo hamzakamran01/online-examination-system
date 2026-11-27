@@ -12,7 +12,6 @@ import {
   FlaskConical,
   LayoutGrid,
   Loader2,
-  Megaphone,
   RefreshCw,
   Send,
   Timer,
@@ -37,6 +36,8 @@ import { fmtClock, fmtMarks } from "@/lib/format"
 import type { AnswerResponse, PaperItem } from "@/lib/domain/paper"
 import type { AttemptView } from "@/server/services/attempts"
 import { SERVER_SNAPSHOT, SyncEngine, type Entry, type SyncState } from "./sync-engine"
+import { useAttemptRuntime } from "./use-attempt-runtime"
+import { AnnouncementBanner } from "./announcement-banner"
 
 type AnswerMap = Record<string, Entry>
 
@@ -345,6 +346,15 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
   // Time warnings and expiry. The lock is derived from the server-synced clock.
   const timeUp = remaining <= 0
   const lockState = locked ?? (timeUp ? "time" : null)
+
+  // Heartbeat, announcements, extensions and review signals (C-3.6, I-5.3).
+  const runtime = useAttemptRuntime({
+    attemptId: view.id,
+    initialAnnouncements: view.announcements,
+    locked: !!lockState,
+    onServerTime: sync,
+    onFinalized: finish,
+  })
   const warned = React.useRef<Set<number>>(new Set())
   React.useEffect(() => {
     for (const m of [10, 5, 1]) {
@@ -463,17 +473,7 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
         </div>
       )}
 
-      {view.announcements.length > 0 && (
-        <div className="mx-auto mt-4 max-w-7xl px-4 sm:px-6">
-          <div className="flex gap-3 rounded-xl border border-info/30 bg-info-soft p-4 text-sm text-info-text">
-            <Megaphone className="mt-0.5 size-4 shrink-0" aria-hidden />
-            <div>
-              <p className="font-medium">Announcement from your examiner</p>
-              <p>{view.announcements[0].body}</p>
-            </div>
-          </div>
-        </div>
-      )}
+      <AnnouncementBanner all={runtime.announcements} visible={runtime.visible} onDismiss={runtime.dismiss} />
 
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[1fr_300px]">
         <main id="main" className="min-w-0">
