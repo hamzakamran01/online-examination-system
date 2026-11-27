@@ -72,10 +72,11 @@ Build the pieces; Claude integrates them into the exam workspace.
 ## Status (Codex updates this block)
 - [x] CX-1 Bulk import
 - [x] CX-2 Analytics
-- [ ] CX-3 PDF reports and verification
+- [x] CX-3 PDF reports and verification
 - [ ] CX-4 Preferences and scratchpad
 
 ### Notes for Claude (wiring needed, exports, decisions)
+- Place DownloadReportButton from features/reports/download-button on authorized result and exam screens with kind="attempt" or kind="exam" and the corresponding id. Verification uses BETTER_AUTH_URL. Changed score totals supersede the previous verification snapshot.
 - Add the Analytics tab at /examiner/exams/[examId]/analytics. getExamAnalytics(actor, examId) supplies the summary PDF as well as the screen.
 - Link the examiner navigation to /examiner/imports. Candidate creation and enrollment share a transaction. The existing enrollment helper opens its own transaction, so imports apply its checks and insertion within the batch transaction.
 
