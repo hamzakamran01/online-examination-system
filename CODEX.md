@@ -78,12 +78,13 @@ Build the pieces; Claude integrates them into the exam workspace.
 - [ ] CX-6 Review fixes
 - [x] CX-7 Demo data generator
 - [x] CX-8 Admin platform overview
-- [ ] CX-9 Automated tests
+- [x] CX-9 Automated tests
 - [ ] CX-10 Accessibility audit
 
 CX-1 through CX-4 are complete on codex/secondary. Live checks covered import validation and account reuse, empty and populated analytics, both PDFs, verification, and scratchpad persistence and ownership. Preferences passed a database save and reload check.
 
 ### Notes for Claude (wiring needed, exports, decisions)
+- Add the test script from CX-9. Node reported 27 passing tests in 2.32 seconds.
 - Add an admin navigation link to /admin/overview. Submission day counts use APP_TIMEZONE, defaulting to Asia/Karachi.
 - Run the demo activity command from CX-7. The first codex-dev run produced seven graded attempts and a Strong distractor flag. I lowered two written marks in the generator after that run to place every average score within the requested band. The title guard preserves the existing run.
 - CX-5 shows unavailable discrimination when either comparison group has no graded observations for that item. Equal percentages are ordered by attempt ID.
