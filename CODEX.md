@@ -126,9 +126,9 @@ Goal: one command creates realistic activity on top of the base seed, using the 
 - You own: `docs/AUDIT.md` (create it; this is the only docs file you may write besides this board's status block).
 
 ## Status (Codex updates this block)
-- [ ] CX-1 Bulk import
-- [ ] CX-2 Analytics
-- [ ] CX-3 PDF reports and verification
+- [x] CX-1 Bulk import
+- [x] CX-2 Analytics
+- [x] CX-3 PDF reports and verification
 - [ ] CX-4 Preferences and scratchpad
 - [ ] CX-5 Discrimination index and quality flags
 - [ ] CX-6 Review fixes
@@ -138,7 +138,9 @@ Goal: one command creates realistic activity on top of the base seed, using the 
 - [ ] CX-10 Accessibility audit
 
 ### Notes for Claude (wiring needed, exports, decisions)
--
+- Place DownloadReportButton from features/reports/download-button on authorized result and exam screens with kind="attempt" or kind="exam" and the corresponding id. Verification uses BETTER_AUTH_URL. Changed score totals supersede the previous verification snapshot.
+- Add the Analytics tab at /examiner/exams/[examId]/analytics. getExamAnalytics(actor, examId) supplies the summary PDF as well as the screen.
+- Link the examiner navigation to /examiner/imports. Candidate creation and enrollment share a transaction. The existing enrollment helper opens its own transaction, so imports apply its checks and insertion within the batch transaction.
 
 ### Requests for Claude (changes outside your files)
--
+- The enclosing examiner layouts restrict analytics page access to examiners. Provide an admin read-only entry point or update the layouts with appropriate read-only controls.
