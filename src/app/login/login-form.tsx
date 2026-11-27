@@ -46,7 +46,7 @@ export function LoginForm({ next }: { next?: string }) {
     // Full navigation: the new session cookie must reach every server component, and a
     // client-side replace followed by refresh can race the server redirect.
     const role = (data?.user as { role?: string } | undefined)?.role
-    const home = role === "admin" ? "/admin" : role === "examiner" ? "/examiner" : role === "candidate" ? "/candidate" : "/"
+    const home = role === "admin" ? "/admin/overview" : role === "examiner" ? "/examiner" : role === "candidate" ? "/candidate" : "/"
     window.location.replace(next ?? home)
   })
 

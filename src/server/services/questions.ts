@@ -43,8 +43,8 @@ export async function listQuestions(actor: SessionUser, rawFilter: QuestionFilte
       topicId: questions.topicId,
       topicName: topics.name,
       updatedAt: questions.updatedAt,
-      optionCount: sql<number>`(select count(*)::int from ${questionOptions} where ${questionOptions.questionId} = ${questions.id})`,
-      usedIn: sql<number>`(select count(*)::int from ${examQuestions} where ${examQuestions.questionId} = ${questions.id})`,
+      optionCount: sql<number>`(select count(*)::int from question_options qo where qo.question_id = "questions"."id")`,
+      usedIn: sql<number>`(select count(*)::int from exam_questions eq where eq.question_id = "questions"."id")`,
     })
     .from(questions)
     .leftJoin(topics, eq(topics.id, questions.topicId))

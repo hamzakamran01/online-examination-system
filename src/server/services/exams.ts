@@ -38,11 +38,13 @@ export async function listManagedExams(actor: SessionUser) {
       totalMarks: exams.totalMarks,
       resultsPublishedAt: exams.resultsPublishedAt,
       updatedAt: exams.updatedAt,
-      questionCount: sql<number>`(select count(*)::int from ${examQuestions} where ${examQuestions.examId} = ${exams.id})`,
-      enrolledCount: sql<number>`(select count(*)::int from ${enrollments} where ${enrollments.examId} = ${exams.id})`,
-      activeCount: sql<number>`(select count(*)::int from ${attempts} where ${attempts.examId} = ${exams.id} and ${attempts.isSandbox} = false and ${attempts.status} = 'in_progress' and ${attempts.deadlineAt} > now())`,
-      submittedCount: sql<number>`(select count(*)::int from ${attempts} where ${attempts.examId} = ${exams.id} and ${attempts.isSandbox} = false and ${attempts.status} <> 'in_progress')`,
-      toGradeCount: sql<number>`(select count(*)::int from ${attempts} where ${attempts.examId} = ${exams.id} and ${attempts.isSandbox} = false and ${attempts.status} <> 'in_progress' and ${attempts.gradingStatus} = 'pending')`,
+      // Correlated subqueries use explicit aliases: with a single-table outer query Drizzle renders
+      // columns unqualified, and a bare "id" would bind to the inner table instead of exams.
+      questionCount: sql<number>`(select count(*)::int from exam_questions eq where eq.exam_id = "exams"."id")`,
+      enrolledCount: sql<number>`(select count(*)::int from enrollments en where en.exam_id = "exams"."id")`,
+      activeCount: sql<number>`(select count(*)::int from attempts a where a.exam_id = "exams"."id" and a.is_sandbox = false and a.status = 'in_progress' and a.deadline_at > now())`,
+      submittedCount: sql<number>`(select count(*)::int from attempts a where a.exam_id = "exams"."id" and a.is_sandbox = false and a.status <> 'in_progress')`,
+      toGradeCount: sql<number>`(select count(*)::int from attempts a where a.exam_id = "exams"."id" and a.is_sandbox = false and a.status <> 'in_progress' and a.grading_status = 'pending')`,
     })
     .from(exams)
     .where(actor.role === "admin" ? undefined : eq(exams.ownerId, actor.id))

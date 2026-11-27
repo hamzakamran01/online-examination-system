@@ -1,6 +1,7 @@
 import Link from "next/link"
-import { AlertTriangle, ArrowUpRight, CheckCircle2, History } from "lucide-react"
-import { Panel, PanelHeader, PageHeader, Stat, MetricStrip, SectionTitle } from "@/components/shell/page-header"
+import { AlertTriangle, ArrowUpRight, CheckCircle2, History, Users } from "lucide-react"
+import { Panel, PanelHeader, Stat, MetricStrip, SectionTitle } from "@/components/shell/page-header"
+import { HeroBand, greeting, heroPrimary, heroSecondary } from "@/components/shell/hero"
 import { requirePageRole } from "@/server/auth/guards"
 import { getPlatformOverview } from "@/server/services/platform"
 import { ActivityChart } from "@/features/platform/activity-chart"
@@ -21,23 +22,35 @@ export default async function Page() {
 
   return (
     <>
-      <PageHeader title="Platform overview" description="People, examinations and activity across the whole institution, with anything that needs an administrator." />
+      <HeroBand
+        kicker={`${greeting(new Date())}, ${actor.name.split(" ")[0]}`}
+        title="Platform overview"
+        summary={
+          attention.length
+            ? `${attention.length} item${attention.length === 1 ? " needs" : "s need"} an administrator. ${s["Candidates writing"]} candidate${s["Candidates writing"] === 1 ? " is" : "s are"} writing right now.`
+            : `Everything is running normally. ${s["Candidates writing"]} candidate${s["Candidates writing"] === 1 ? " is" : "s are"} writing right now.`
+        }
+        actions={
+          <>
+            <Link href="/admin" className={heroPrimary}>
+              <Users />
+              Manage users
+            </Link>
+            <Link href="/admin/audit" className={heroSecondary}>
+              <History />
+              Audit log
+            </Link>
+          </>
+        }
+        metrics={[
+          { label: "Writing now", value: s["Candidates writing"], hint: "Active attempts" },
+          { label: "Submitted today", value: s["Submitted today"], hint: "Sandbox excluded" },
+          { label: "Answers to grade", value: s["Written answers awaiting grading"], hint: "Across all examiners" },
+          { label: "Needs attention", value: attention.length, hint: attention.length ? "See list below" : "Nothing open" },
+        ]}
+      />
 
       <div className="flex flex-col gap-8">
-        <section aria-label="Activity now">
-          <SectionTitle hint="Live from the server">Right now</SectionTitle>
-          <MetricStrip className="lg:grid-cols-3">
-            <Stat label="Candidates writing" value={s["Candidates writing"]} tone={s["Candidates writing"] ? "success" : undefined} hint="Active attempts" />
-            <Stat label="Submitted today" value={s["Submitted today"]} hint="Real attempts, sandbox excluded" />
-            <Stat
-              label="Written answers to grade"
-              value={s["Written answers awaiting grading"]}
-              tone={s["Written answers awaiting grading"] ? "time" : undefined}
-              hint="Across all examiners"
-            />
-          </MetricStrip>
-        </section>
-
         <div className="grid gap-8 lg:grid-cols-2">
           <section aria-label="People">
             <SectionTitle

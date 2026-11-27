@@ -12,7 +12,7 @@ export default async function NewExamPage() {
       <PageHeader
         title="New exam"
         description="Start with the basics. You will add questions, enroll candidates and review everything before publishing."
-        back={{ href: "/examiner", label: "Exams" }}
+        back={{ href: "/examiner/exams", label: "Exams" }}
       />
       <ExamForm />
     </div>

@@ -55,7 +55,7 @@ export async function searchCandidates(actor: SessionUser, examId: string, q: st
       id: user.id,
       name: user.name,
       email: user.email,
-      enrolled: sql<boolean>`exists(select 1 from ${enrollments} where ${enrollments.examId} = ${examId} and ${enrollments.candidateId} = ${user.id})`,
+      enrolled: sql<boolean>`exists(select 1 from enrollments en where en.exam_id = ${examId} and en.candidate_id = "user"."id")`,
     })
     .from(user)
     .where(

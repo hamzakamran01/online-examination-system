@@ -33,7 +33,7 @@ export function ExamLifecycleActions({ examId, status }: { examId: string; statu
           description="The draft and its question list are removed. Questions stay in your bank."
           confirmLabel="Delete draft"
           destructive
-          onConfirm={() => run(() => deleteExamAction(examId), { onOk: () => router.push("/examiner") })}
+          onConfirm={() => run(() => deleteExamAction(examId), { onOk: () => router.push("/examiner/exams") })}
           trigger={(open) => (
             <Button variant="ghost" onClick={open}>
               <Trash2 />

@@ -5,6 +5,7 @@ import {
   FilePlus2,
   FileUp,
   History,
+  Gauge,
   LayoutGrid,
   ShieldCheck,
   SquarePen,
@@ -35,7 +36,8 @@ export const NAV: Record<Role, NavGroup[]> = {
     {
       label: "Examinations",
       items: [
-        { href: "/examiner", label: "All exams", icon: LayoutGrid, match: (p) => p === "/examiner" || p.startsWith("/examiner/exams"), keywords: "board" },
+        { href: "/examiner", label: "Desk", icon: Gauge, match: (p) => p === "/examiner", keywords: "home dashboard overview" },
+        { href: "/examiner/exams", label: "Exams", icon: LayoutGrid, keywords: "papers list" },
         { href: "/examiner/bank", label: "Question bank", icon: BookOpenCheck, keywords: "questions" },
         { href: "/examiner/imports", label: "Bulk import", icon: FileUp, keywords: "csv json upload" },
       ],
@@ -68,8 +70,8 @@ const SEGMENT: Record<string, string> = {
   admin: "Administration",
   overview: "Overview",
   audit: "Audit log",
-  examiner: "Exams",
-  exams: "",
+  examiner: "Desk",
+  exams: "Exams",
   bank: "Question bank",
   new: "New",
   imports: "Bulk import",
