@@ -25,7 +25,6 @@ export default async function BankPage({ searchParams }: { searchParams: Promise
   return (
     <>
       <PageHeader
-        eyebrow={<span className="kicker">Examiner desk</span>}
         title="Question bank"
         description="Reusable questions organised by topic and difficulty. Questions in a published exam are locked so every candidate sees the same version."
         actions={

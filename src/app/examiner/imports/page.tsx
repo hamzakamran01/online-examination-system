@@ -7,9 +7,8 @@ export default async function Page() {
   return (
     <>
       <PageHeader
-        eyebrow={<span className="kicker">Examiner desk</span>}
         title="Bulk import"
-        description="Preview candidate accounts or question bank items before importing. Invalid rows are listed before anything is written."
+        description="Preview candidate accounts or question bank items before importing."
       />
       <ImportManager exams={exams.filter((e) => e.effective !== "completed").map(({ id, title }) => ({ id, title }))} />
     </>

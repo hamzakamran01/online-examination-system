@@ -24,20 +24,19 @@ export default async function CandidateResultPage({ params }: PageProps<"/candid
     <div className="max-w-3xl">
       <PageHeader
         back={{ href: "/candidate", label: "My exams" }}
-        eyebrow={<span className="kicker">Your record</span>}
         title={r.exam.title}
         description={`Submitted ${fmtDateTime(r.attempt.submittedAt)}${r.attempt.submitReason === "timeout" ? " (automatically at the time limit)" : ""}`}
       />
 
       {r.published ? (
-        <Panel className="certificate mb-6 grid gap-4 p-5 sm:grid-cols-[1fr_auto] sm:items-center">
+        <Panel className="mb-6 grid gap-4 p-5 sm:grid-cols-[1fr_auto] sm:items-center">
           <div className="flex items-center gap-4">
-            <span className="seal-disc shrink-0" aria-hidden>
-              <Award className="size-6" />
+            <span className="grid size-14 place-items-center rounded-full bg-brand-soft text-primary">
+              <Award className="size-7" aria-hidden />
             </span>
             <div>
-              <p className="text-[0.68rem] font-medium tracking-[0.14em] text-muted-foreground uppercase">Your score</p>
-              <p className="font-heading text-4xl font-medium tabular-nums">
+              <p className="text-sm text-muted-foreground">Your score</p>
+              <p className="text-3xl font-semibold tabular-nums">
                 {fmtMarks(r.score)} <span className="text-lg font-normal text-muted-foreground">/ {fmtMarks(r.attempt.maxMarks)}</span>
               </p>
               <div className="mt-1 flex flex-wrap gap-2">
@@ -61,7 +60,7 @@ export default async function CandidateResultPage({ params }: PageProps<"/candid
       )}
 
       <h2 className="mb-3 font-semibold">{r.published ? "Question breakdown" : "Your submitted answers"}</h2>
-      <ol className="flex flex-col gap-3">
+      <ol className="space-y-3">
         {r.items.map((it) => {
           const selected = it.response?.kind === "choice" ? it.response.selected : []
           const text = it.response?.kind === "text" ? it.response.text : ""
@@ -87,7 +86,7 @@ export default async function CandidateResultPage({ params }: PageProps<"/candid
                 {it.type === "written" ? (
                   <div className="rounded-lg bg-muted/50 p-3 text-sm whitespace-pre-wrap">{text.trim() ? text : <span className="text-muted-foreground italic">No answer.</span>}</div>
                 ) : (
-                  <ul className="flex flex-col gap-1.5 text-sm">
+                  <ul className="space-y-1.5 text-sm">
                     {it.options.map((o, oi) => {
                       const picked = selected.includes(o.id)
                       const isKey = it.correct?.includes(o.id) ?? false

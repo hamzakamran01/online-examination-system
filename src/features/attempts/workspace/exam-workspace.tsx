@@ -91,33 +91,28 @@ function SyncPill({ state, pending, lastSyncedAt }: { state: SyncState; pending:
 function Palette({
   items,
   answers,
-  visited,
   current,
   onJump,
 }: {
   items: PaperItem[]
   answers: AnswerMap
-  visited: Set<string>
   current: number
   onJump: (i: number) => void
 }) {
-  const counts = { answered: 0, unanswered: 0, flagged: 0, unseen: 0 }
+  const counts = { answered: 0, unanswered: 0, flagged: 0 }
   items.forEach((it) => {
     const a = answers[it.itemId]
     if (answered(a?.response)) counts.answered++
     else counts.unanswered++
     if (a?.flagged) counts.flagged++
-    if (!visited.has(it.itemId) && !answered(a?.response)) counts.unseen++
   })
   return (
-    <div className="flex flex-col gap-4">
+    <div className="space-y-4">
       <ol className="grid grid-cols-6 gap-2 sm:grid-cols-8 lg:grid-cols-5">
         {items.map((it, i) => {
           const a = answers[it.itemId]
           const isAnswered = answered(a?.response)
-          const flagged = !!a?.flagged
-          const seen = visited.has(it.itemId)
-          const label = `Question ${i + 1}, ${!seen && !isAnswered ? "not visited" : isAnswered ? "answered" : "opened, not answered"}${flagged ? ", marked for review" : ""}${i === current ? ", current" : ""}`
+          const label = `Question ${i + 1}, ${isAnswered ? "answered" : "not answered"}${a?.flagged ? ", marked for review" : ""}${i === current ? ", current" : ""}`
           return (
             <li key={it.itemId}>
               <button
@@ -126,55 +121,45 @@ function Palette({
                 aria-label={label}
                 aria-current={i === current ? "step" : undefined}
                 className={cn(
-                  "relative grid aspect-square min-h-10 w-full place-items-center border text-sm font-medium tabular-nums transition-colors",
-                  flagged ? "rounded-full" : "rounded-md",
-                  isAnswered
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : seen
-                      ? "border-foreground/40 bg-background hover:bg-muted"
-                      : "border-dashed border-foreground/20 bg-muted/50 text-muted-foreground hover:bg-muted",
-                  i === current && "ring-2 ring-seal ring-offset-2 ring-offset-background"
+                  "relative grid aspect-square w-full place-items-center rounded-lg border text-sm font-medium tabular-nums transition-colors",
+                  isAnswered ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted",
+                  i === current && "ring-3 ring-ring/60 ring-offset-1 ring-offset-background"
                 )}
               >
                 {i + 1}
+                {a?.flagged && (
+                  <span className="absolute -top-1.5 -right-1.5 grid size-4 place-items-center rounded-full bg-warning text-[0.6rem] text-black" aria-hidden>
+                    <Flag className="size-2.5" />
+                  </span>
+                )}
               </button>
             </li>
           )
         })}
       </ol>
-      <dl className="grid grid-cols-2 gap-2 text-center text-xs">
-        <div className="rounded-md bg-muted p-2">
+      <dl className="grid grid-cols-3 gap-2 text-center text-xs">
+        <div className="rounded-lg bg-muted p-2">
           <dt className="flex items-center justify-center gap-1 text-muted-foreground">
             <span className="size-2.5 rounded-sm bg-primary" aria-hidden />
             Answered
           </dt>
-          <dd className="font-heading text-lg font-medium tabular-nums">{counts.answered}</dd>
+          <dd className="text-base font-semibold tabular-nums">{counts.answered}</dd>
         </div>
-        <div className="rounded-md bg-muted p-2">
+        <div className="rounded-lg bg-muted p-2">
           <dt className="flex items-center justify-center gap-1 text-muted-foreground">
-            <span className="size-2.5 rounded-sm border border-foreground/40 bg-background" aria-hidden />
-            Opened blank
+            <span className="size-2.5 rounded-sm border bg-background" aria-hidden />
+            Unanswered
           </dt>
-          <dd className="font-heading text-lg font-medium tabular-nums">{counts.unanswered - counts.unseen}</dd>
+          <dd className="text-base font-semibold tabular-nums">{counts.unanswered}</dd>
         </div>
-        <div className="rounded-md bg-muted p-2">
+        <div className="rounded-lg bg-muted p-2">
           <dt className="flex items-center justify-center gap-1 text-muted-foreground">
-            <span className="size-2.5 rounded-sm border border-dashed border-foreground/25 bg-muted" aria-hidden />
-            Not visited
-          </dt>
-          <dd className="font-heading text-lg font-medium tabular-nums">{counts.unseen}</dd>
-        </div>
-        <div className="rounded-md bg-muted p-2">
-          <dt className="flex items-center justify-center gap-1 text-muted-foreground">
-            <span className="size-2.5 rounded-full border border-foreground/40 bg-background" aria-hidden />
+            <Flag className="size-3 text-warning-text" aria-hidden />
             Review
           </dt>
-          <dd className="font-heading text-lg font-medium tabular-nums">{counts.flagged}</dd>
+          <dd className="text-base font-semibold tabular-nums">{counts.flagged}</dd>
         </div>
       </dl>
-      <p className="text-[0.7rem] leading-relaxed text-muted-foreground">
-        Filled = answered. Solid outline = opened but blank. Dashed = not visited. Circles are marked for review. Brass ring is the current question.
-      </p>
     </div>
   )
 }
@@ -199,9 +184,9 @@ function QuestionView({
   const headingId = `q-${item.itemId}`
 
   return (
-    <article aria-labelledby={headingId} className="rounded-lg border bg-paper p-5 shadow-panel sm:p-8">
+    <article aria-labelledby={headingId} className="rounded-2xl border bg-card p-5 shadow-panel sm:p-8">
       <header className="mb-5 flex flex-wrap items-center gap-2 text-sm">
-        <span className="font-heading text-base font-medium">
+        <span className="font-medium text-muted-foreground">
           Question {index + 1} of {total}
         </span>
         <Badge variant="brand">
@@ -215,7 +200,7 @@ function QuestionView({
       </h2>
 
       {item.type === "written" ? (
-        <div className="flex flex-col gap-1.5">
+        <div className="space-y-1.5">
           <label htmlFor={`ans-${item.itemId}`} className="sr-only">
             Your answer
           </label>
@@ -237,15 +222,14 @@ function QuestionView({
       ) : (
         <fieldset disabled={disabled}>
           <legend className="sr-only">{TYPE_HINT[item.type]}</legend>
-          <ul className="flex flex-col gap-2.5">
+          <ul className="space-y-2.5">
             {item.options.map((o, oi) => {
               const checked = selected.includes(o.id)
-              const letter = String.fromCharCode(65 + oi)
               return (
                 <li key={o.id}>
                   <label
                     className={cn(
-                      "flex cursor-pointer items-start gap-3 rounded-md border p-4 transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
+                      "flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
                       checked ? "border-primary bg-brand-softer" : "hover:bg-muted/60"
                     )}
                   >
@@ -262,18 +246,12 @@ function QuestionView({
                               : [...selected, o.id]
                         onAnswer(next.length ? { kind: "choice", selected: next } : null)
                       }}
-                      className="sr-only"
+                      className="mt-0.5 size-4.5 shrink-0 accent-[var(--primary)]"
                     />
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "grid size-8 shrink-0 place-items-center rounded-md border font-heading text-sm font-medium",
-                        checked ? "border-primary bg-primary text-primary-foreground" : "bg-background"
-                      )}
-                    >
-                      {letter}
+                    <span className="flex-1">
+                      <span className="mr-2 font-medium text-muted-foreground">{String.fromCharCode(65 + oi)}.</span>
+                      {o.text}
                     </span>
-                    <span className="flex-1 pt-1">{o.text}</span>
                   </label>
                 </li>
               )
@@ -296,7 +274,6 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
   const { remaining, sync } = useServerClock(view.serverNow, view.deadlineAt)
   const [answers, setAnswers] = React.useState<AnswerMap>(view.answers)
   const [current, setCurrent] = React.useState(0)
-  const [visited, setVisited] = React.useState<Set<string>>(() => new Set(items[0] ? [items[0].itemId] : []))
   const [mode, setMode] = React.useState<"question" | "review">("question")
   const [paletteOpen, setPaletteOpen] = React.useState(false)
   const [confirmOpen, setConfirmOpen] = React.useState(false)
@@ -431,8 +408,6 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
   const critical = remaining <= 60_000
 
   const jump = (i: number) => {
-    const next = items[i]
-    if (next) setVisited((prev) => new Set(prev).add(next.itemId))
     setCurrent(i)
     setMode("question")
     setPaletteOpen(false)
@@ -448,11 +423,11 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
           Sandbox preview. This attempt never affects results or statistics.
         </div>
       )}
-      <header className="surface-ink sticky top-0 z-30 border-b border-sidebar-border">
-        <div className="mx-auto flex h-[4.5rem] max-w-7xl items-center gap-3 px-4 sm:px-6">
-          <Logo compact inverse className="hidden sm:inline-flex" />
+      <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
+          <Logo compact className="hidden sm:inline-flex" />
           <div className="min-w-0 flex-1">
-            <p className="font-heading truncate text-base font-medium text-foreground">{view.examTitle}</p>
+            <p className="truncate text-sm font-semibold">{view.examTitle}</p>
             <div className="hidden sm:block">
               <SyncPill state={sync$.state} pending={pending} lastSyncedAt={sync$.lastSyncedAt} />
             </div>
@@ -461,46 +436,22 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
             role="timer"
             aria-label={`Time remaining ${fmtClock(remaining)}`}
             className={cn(
-              "flex min-w-[7.75rem] flex-col items-end rounded-md border px-3 py-1.5",
-              critical
-                ? "border-danger/50 bg-danger-soft text-danger-text"
-                : low
-                  ? "border-warning/50 bg-warning-soft text-warning-text"
-                  : "border-white/15 bg-white/5"
+              "flex items-center gap-2 rounded-lg border px-3 py-1.5 font-mono text-lg font-semibold tabular-nums",
+              critical ? "border-danger/40 bg-danger-soft text-danger-text" : low ? "border-warning/40 bg-warning-soft text-warning-text" : "bg-card"
             )}
           >
-            <span className="kicker">Server time left</span>
-            <span className="flex items-center gap-1.5 font-mono text-xl font-semibold tabular-nums">
-              <Timer className="size-3.5" aria-hidden />
-              {fmtClock(remaining)}
-            </span>
+            <Timer className="size-4" aria-hidden />
+            {fmtClock(remaining)}
           </div>
-          <Button
-            variant="outline"
-            className="border-white/15 bg-transparent text-foreground hover:bg-white/10 lg:hidden"
-            onClick={() => setPaletteOpen(true)}
-            aria-label="Show all questions"
-          >
+          <Button variant="outline" className="lg:hidden" onClick={() => setPaletteOpen(true)} aria-label="Show all questions">
             <LayoutGrid />
           </Button>
           <Button onClick={() => setMode("review")} disabled={!!lockState} className="hidden sm:inline-flex">
-            <Send data-icon="inline-start" />
+            <Send />
             Review and submit
           </Button>
         </div>
-        <div
-          className="exam-progress"
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={items.length}
-          aria-valuenow={items.length - unansweredIdx.length}
-          aria-label="Questions answered"
-        >
-          <i style={{ width: `${items.length ? ((items.length - unansweredIdx.length) / items.length) * 100 : 0}%` }} />
-        </div>
-        <div className="border-t border-sidebar-border px-4 py-1.5 sm:hidden">
-          <SyncPill state={sync$.state} pending={pending} lastSyncedAt={sync$.lastSyncedAt} />
-        </div>
+        <div className="border-t px-4 py-1.5 sm:hidden"><SyncPill state={sync$.state} pending={pending} lastSyncedAt={sync$.lastSyncedAt} /></div>
       </header>
 
       {lockState && (
@@ -536,9 +487,9 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
                 disabled={!!lockState}
                 onAnswer={(r) => update(item.itemId, { response: r }, item.type === "written" ? 900 : 300)}
               />
-              <nav aria-label="Question navigation" className="mt-4 mb-20 hidden flex-wrap items-center gap-2 sm:mb-0 sm:flex">
+              <nav aria-label="Question navigation" className="mt-4 flex flex-wrap items-center gap-2">
                 <Button variant="outline" disabled={current === 0} onClick={() => jump(current - 1)}>
-                  <ChevronLeft data-icon="inline-start" />
+                  <ChevronLeft />
                   Previous
                 </Button>
                 <Button
@@ -548,61 +499,44 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
                   onClick={() => update(item.itemId, { flagged: !answers[item.itemId]?.flagged }, 300)}
                   className={cn(answers[item.itemId]?.flagged && "text-warning-text")}
                 >
-                  <Flag data-icon="inline-start" />
+                  <Flag />
                   {answers[item.itemId]?.flagged ? "Marked for review" : "Mark for review"}
                 </Button>
                 <div className="ml-auto flex gap-2">
                   {current < items.length - 1 ? (
                     <Button onClick={() => jump(current + 1)}>
                       Next
-                      <ChevronRight data-icon="inline-end" />
+                      <ChevronRight />
                     </Button>
                   ) : (
                     <Button onClick={() => setMode("review")} disabled={!!lockState}>
                       Review answers
-                      <ChevronRight data-icon="inline-end" />
+                      <ChevronRight />
                     </Button>
                   )}
                 </div>
               </nav>
-              <div className="fixed inset-x-0 bottom-0 z-20 flex gap-2 border-t bg-background/95 p-3 backdrop-blur sm:hidden">
-                <Button variant="outline" className="flex-1" disabled={current === 0} onClick={() => jump(current - 1)}>
-                  Previous
-                </Button>
-                <Button variant="outline" onClick={() => setPaletteOpen(true)} aria-label="Question map">
-                  <LayoutGrid />
-                </Button>
-                {current < items.length - 1 ? (
-                  <Button className="flex-1" onClick={() => jump(current + 1)}>
-                    Next
-                  </Button>
-                ) : (
-                  <Button className="flex-1" onClick={() => setMode("review")} disabled={!!lockState}>
-                    Review
-                  </Button>
-                )}
-              </div>
             </>
           ) : (
-            <section aria-labelledby="review-h" className="rounded-lg border bg-paper p-5 shadow-panel sm:p-8">
-              <h2 id="review-h" className="font-heading text-2xl font-medium">
+            <section aria-labelledby="review-h" className="rounded-2xl border bg-card p-5 shadow-panel sm:p-8">
+              <h2 id="review-h" className="text-xl font-semibold">
                 Review before submitting
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 You can still change any answer until you submit or the time runs out.
               </p>
               <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-md bg-muted p-4">
+                <div className="rounded-xl bg-muted p-4">
                   <p className="text-xs text-muted-foreground">Answered</p>
-                  <p className="font-heading text-2xl font-medium tabular-nums">{items.length - unansweredIdx.length} / {items.length}</p>
+                  <p className="text-2xl font-semibold tabular-nums">{items.length - unansweredIdx.length} / {items.length}</p>
                 </div>
-                <div className={cn("rounded-md p-4", unansweredIdx.length ? "bg-warning-soft" : "bg-muted")}>
+                <div className={cn("rounded-xl p-4", unansweredIdx.length ? "bg-warning-soft" : "bg-muted")}>
                   <p className="text-xs text-muted-foreground">Unanswered</p>
-                  <p className="font-heading text-2xl font-medium tabular-nums">{unansweredIdx.length}</p>
+                  <p className="text-2xl font-semibold tabular-nums">{unansweredIdx.length}</p>
                 </div>
-                <div className={cn("rounded-md p-4", flaggedIdx.length ? "bg-warning-soft" : "bg-muted")}>
+                <div className={cn("rounded-xl p-4", flaggedIdx.length ? "bg-warning-soft" : "bg-muted")}>
                   <p className="text-xs text-muted-foreground">Marked for review</p>
-                  <p className="font-heading text-2xl font-medium tabular-nums">{flaggedIdx.length}</p>
+                  <p className="text-2xl font-semibold tabular-nums">{flaggedIdx.length}</p>
                 </div>
               </div>
               {[
@@ -643,9 +577,9 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
         </main>
 
         <aside aria-label="All questions" className="hidden lg:block">
-          <div className="sticky top-24 flex flex-col gap-4 rounded-lg border bg-paper p-5 shadow-panel">
-            <p className="font-heading text-base font-medium">Question map</p>
-            <Palette items={items} answers={answers} visited={visited} current={mode === "question" ? current : -1} onJump={jump} />
+          <div className="sticky top-24 space-y-4 rounded-2xl border bg-card p-5 shadow-panel">
+            <p className="text-sm font-semibold">Questions</p>
+            <Palette items={items} answers={answers} current={mode === "question" ? current : -1} onJump={jump} />
             <Button variant="outline" className="w-full" onClick={() => setMode("review")} disabled={!!lockState}>
               Review and submit
             </Button>
@@ -656,7 +590,7 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
       <Sheet open={paletteOpen} onOpenChange={setPaletteOpen}>
         <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto p-5">
           <SheetTitle>All questions</SheetTitle>
-          <Palette items={items} answers={answers} visited={visited} current={current} onJump={jump} />
+          <Palette items={items} answers={answers} current={current} onJump={jump} />
           <Button
             onClick={() => {
               setPaletteOpen(false)

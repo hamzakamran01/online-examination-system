@@ -15,11 +15,7 @@ export default async function AuditPage() {
   const rows = await listAudit(actor)
   return (
     <>
-      <PageHeader
-        eyebrow={<span className="kicker">Administrator desk</span>}
-        title="Audit log"
-        description="Append-only record of sensitive actions: account changes, publishing, grading and time extensions."
-      />
+      <PageHeader title="Audit log" description="Append-only record of sensitive actions: account changes, publishing, grading and time extensions." />
       <Panel>
         <div className="overflow-x-auto">
           <Table>

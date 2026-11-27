@@ -55,7 +55,7 @@ export function StartExam({
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border bg-paper p-5 shadow-panel rule-top">
+    <div className="space-y-4 rounded-xl border bg-card p-5 shadow-panel">
       <label className="flex items-start gap-3 text-sm">
         <Checkbox checked={agreed} onCheckedChange={(v) => setAgreed(Boolean(v))} className="mt-0.5" />
         <span>I have read the instructions. I understand the timer starts immediately and cannot be paused.</span>

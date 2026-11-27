@@ -15,7 +15,6 @@ export default async function AdminUsersPage() {
   return (
     <>
       <PageHeader
-        eyebrow={<span className="kicker">Administrator desk</span>}
         title="Users and roles"
         description="Create accounts, assign roles and deactivate access. Every change is enforced on the server and recorded in the audit log."
       />

@@ -24,7 +24,7 @@ export default async function ExamLayout({ children, params }: LayoutProps<"/exa
       <PageHeader
         back={{ href: "/examiner", label: "Exams" }}
         eyebrow={<ExamStatusBadge status={status} />}
-        title={<span className="font-heading">{exam.title}</span>}
+        title={exam.title}
         description={
           <span className="flex flex-wrap gap-x-4 gap-y-1">
             <span className="inline-flex items-center gap-1.5">

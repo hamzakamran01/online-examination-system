@@ -3,7 +3,7 @@ import Link from "next/link"
 import { ArrowRight, CalendarClock, ClipboardList, Plus, Users } from "lucide-react"
 import { requirePageRole } from "@/server/auth/guards"
 import { listManagedExams } from "@/server/services/exams"
-import { PageHeader, SectionLabel, Stat } from "@/components/shell/page-header"
+import { PageHeader, Stat } from "@/components/shell/page-header"
 import { ExamStatusBadge } from "@/components/shell/status"
 import { buttonVariants } from "@/components/ui/button"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
@@ -19,13 +19,6 @@ const GROUPS: { key: EffectiveStatus; title: string; hint: string }[] = [
   { key: "completed", title: "Completed", hint: "Window closed: grade and publish results" },
 ]
 
-const stripe: Record<EffectiveStatus, string> = {
-  ongoing: "shadow-[inset_3px_0_0_0_var(--success)]",
-  published: "shadow-[inset_3px_0_0_0_var(--info)]",
-  draft: "shadow-[inset_3px_0_0_0_var(--border)]",
-  completed: "shadow-[inset_3px_0_0_0_var(--primary)]",
-}
-
 export default async function ExaminerHome() {
   const actor = await requirePageRole("examiner")
   const exams = await listManagedExams(actor)
@@ -34,9 +27,8 @@ export default async function ExaminerHome() {
   return (
     <>
       <PageHeader
-        eyebrow={<span className="kicker">Examiner desk</span>}
-        title="Examination board"
-        description={`${actor.name.split(" ").slice(0, 2).join(" ")}. Papers grouped by lifecycle. Live sittings come first.`}
+        title={`Welcome, ${actor.name.split(" ").slice(0, 2).join(" ")}`}
+        description="Your examinations by lifecycle stage."
         actions={
           <Link href="/examiner/exams/new" className={buttonVariants()}>
             <Plus />
@@ -52,7 +44,7 @@ export default async function ExaminerHome() {
       </div>
 
       {!exams.length ? (
-        <Empty className="rounded-lg border bg-paper py-16">
+        <Empty className="rounded-xl border bg-card py-16">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <ClipboardList />
@@ -65,24 +57,27 @@ export default async function ExaminerHome() {
           </Link>
         </Empty>
       ) : (
-        <div className="flex flex-col gap-8">
+        <div className="space-y-8">
           {GROUPS.map((g) => {
             const list = exams.filter((e) => e.effective === g.key)
             if (!list.length) return null
             return (
               <section key={g.key} aria-labelledby={`g-${g.key}`}>
-                <SectionLabel hint={g.hint}>
-                  <span id={`g-${g.key}`}>{g.title}</span>
-                </SectionLabel>
+                <div className="mb-3 flex items-baseline gap-2">
+                  <h2 id={`g-${g.key}`} className="font-semibold">
+                    {g.title}
+                  </h2>
+                  <span className="text-xs text-muted-foreground">{g.hint}</span>
+                </div>
                 <ul className="grid gap-3 md:grid-cols-2">
                   {list.map((e) => (
                     <li key={e.id}>
                       <Link
                         href={`/examiner/exams/${e.id}`}
-                        className={`group flex h-full flex-col gap-3 rounded-lg border bg-paper p-5 shadow-panel transition-colors hover:border-primary/35 ${stripe[e.effective]}`}
+                        className="group flex h-full flex-col gap-3 rounded-xl border bg-card p-5 shadow-panel transition-colors hover:border-primary/40"
                       >
                         <div className="flex items-start justify-between gap-3">
-                          <p className="font-heading text-lg font-medium group-hover:text-primary">{e.title}</p>
+                          <p className="font-medium group-hover:text-primary">{e.title}</p>
                           <ExamStatusBadge status={e.effective} />
                         </div>
                         <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
