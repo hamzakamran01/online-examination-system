@@ -24,7 +24,7 @@ export default async function CandidateResultPage({ params }: PageProps<"/candid
   return (
     <div className="max-w-3xl">
       <PageHeader
-        back={{ href: "/candidate", label: "My exams" }}
+        back={{ href: "/candidate/results", label: "Results" }}
         title={r.exam.title}
         description={`Submitted ${fmtDateTime(r.attempt.submittedAt)}${r.attempt.submitReason === "timeout" ? " (automatically at the time limit)" : ""}`}
       />

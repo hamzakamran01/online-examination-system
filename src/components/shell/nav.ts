@@ -1,13 +1,14 @@
 import {
+  Award,
   BarChart3,
   BookOpenCheck,
-  ClipboardList,
   FilePlus2,
   FileUp,
   History,
   Gauge,
   LayoutGrid,
   ShieldCheck,
+  SlidersHorizontal,
   SquarePen,
   UserPlus,
   Users,
@@ -46,7 +47,11 @@ export const NAV: Record<Role, NavGroup[]> = {
   candidate: [
     {
       label: "My work",
-      items: [{ href: "/candidate", label: "My exams", icon: ClipboardList, match: (p) => p === "/candidate" || p.startsWith("/candidate/"), keywords: "results" }],
+      items: [
+        { href: "/candidate", label: "Desk", icon: Gauge, match: (p) => p === "/candidate" || p.startsWith("/candidate/exams"), keywords: "home exams upcoming" },
+        { href: "/candidate/results", label: "Results", icon: Award, keywords: "scores marks transcript" },
+        { href: "/candidate/preferences", label: "Exam preferences", icon: SlidersHorizontal, keywords: "display font theme contrast" },
+      ],
     },
   ],
 }
@@ -80,7 +85,7 @@ const SEGMENT: Record<string, string> = {
   review: "Review and publish",
   results: "Grading and results",
   analytics: "Analytics",
-  candidate: "My exams",
+  candidate: "Desk",
 }
 
 export function crumbs(pathname: string): { label: string; href: string }[] {
@@ -92,7 +97,19 @@ export function crumbs(pathname: string): { label: string; href: string }[] {
     href += `/${p}`
     const isId = /^[0-9a-f-]{16,}$/i.test(p)
     // Candidate routes: /candidate/results/<id> reads "My exams > Result", /candidate/exams/<id> reads "My exams > Exam".
-    if (candidate && (p === "results" || p === "exams")) return
+    if (candidate && p === "results" && i === parts.length - 1) {
+      out.push({ label: "Results", href })
+      return
+    }
+    if (candidate && p === "results") {
+      out.push({ label: "Results", href })
+      return
+    }
+    if (candidate && p === "preferences") {
+      out.push({ label: "Exam preferences", href })
+      return
+    }
+    if (candidate && p === "exams") return
     if (candidate && isId) {
       out.push({ label: parts[i - 1] === "results" ? "Result" : "Exam", href })
       return
