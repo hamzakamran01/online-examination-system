@@ -289,7 +289,7 @@ export async function getCandidateResult(actor: SessionUser, attemptId: string) 
     attempt: { id: a.attempt.id, submittedAt: a.attempt.submittedAt, submitReason: a.attempt.submitReason, maxMarks: a.attempt.maxMarks },
     score,
     percent: score === null || !a.attempt.maxMarks ? null : round2((100 * score) / a.attempt.maxMarks),
-    passed: score === null || a.exam.passMark === null ? null : score >= a.exam.passMark,
+    passed: score === null || a.exam.passMark === null || a.exam.passMark <= 0 ? null : score >= a.exam.passMark,
     items,
   }
 }

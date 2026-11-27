@@ -85,9 +85,16 @@ export function crumbs(pathname: string): { label: string; href: string }[] {
   const parts = pathname.split("/").filter(Boolean)
   const out: { label: string; href: string }[] = []
   let href = ""
+  const candidate = parts[0] === "candidate"
   parts.forEach((p, i) => {
     href += `/${p}`
     const isId = /^[0-9a-f-]{16,}$/i.test(p)
+    // Candidate routes: /candidate/results/<id> reads "My exams > Result", /candidate/exams/<id> reads "My exams > Exam".
+    if (candidate && (p === "results" || p === "exams")) return
+    if (candidate && isId) {
+      out.push({ label: parts[i - 1] === "results" ? "Result" : "Exam", href })
+      return
+    }
     const label = isId ? (parts[i - 1] === "exams" ? "Exam" : parts[i - 1] === "results" ? "Attempt" : parts[i - 1] === "bank" ? "Question" : "Detail") : SEGMENT[p]
     if (label) out.push({ label, href })
   })

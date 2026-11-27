@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
-import { Award, Check, Clock, Lock, MessageSquare, X } from "lucide-react"
+import { Check, Clock, Lock, MessageSquare, X } from "lucide-react"
 import { requirePageRole } from "@/server/auth/guards"
 import { getCandidateResult } from "@/server/services/grading"
 import { AppError } from "@/server/errors"
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import { PageHeader, Panel } from "@/components/shell/page-header"
 import { Badge } from "@/components/ui/badge"
 import { DownloadReportButton } from "@/features/reports/download-button"
+import { ResultMood } from "@/features/results/result-mood"
 
 export const metadata: Metadata = { title: "My result" }
 
@@ -29,23 +30,14 @@ export default async function CandidateResultPage({ params }: PageProps<"/candid
       />
 
       {r.published ? (
-        <Panel className="mb-6 grid gap-4 p-5 sm:grid-cols-[1fr_auto] sm:items-center">
-          <div className="flex items-center gap-4">
-            <span className="grid size-14 place-items-center rounded-full bg-brand-soft text-primary">
-              <Award className="size-7" aria-hidden />
-            </span>
-            <div>
-              <p className="text-sm text-muted-foreground">Your score</p>
-              <p className="text-3xl font-semibold tabular-nums">
-                {fmtMarks(r.score)} <span className="text-lg font-normal text-muted-foreground">/ {fmtMarks(r.attempt.maxMarks)}</span>
-              </p>
-              <div className="mt-1 flex flex-wrap gap-2">
-                <Badge variant="secondary">{r.percent}%</Badge>
-                {r.passed !== null && <Badge variant={r.passed ? "success" : "danger"}>{r.passed ? "Pass" : "Below pass mark"}</Badge>}
-              </div>
-            </div>
+        <Panel className="mb-6 overflow-hidden">
+          <div className="p-6 sm:p-8">
+            <ResultMood score={r.score ?? 0} max={r.attempt.maxMarks} percent={r.percent ?? 0} passed={r.passed} passMark={r.exam.passMark} />
           </div>
-          <DownloadReportButton kind="attempt" id={r.attempt.id} />
+          <div className="flex flex-col gap-3 border-t bg-surface-sunken px-6 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+            <p className="text-sm text-muted-foreground">Download a verifiable PDF of this result. Anyone can check it with the code or QR it carries.</p>
+            <DownloadReportButton kind="attempt" id={r.attempt.id} />
+          </div>
         </Panel>
       ) : (
         <Panel className="mb-6 flex gap-3 p-5">
