@@ -1,16 +1,16 @@
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
-import { Clock3, ShieldCheck, WifiOff } from "lucide-react"
+import { CheckCircle2, CloudOff, ShieldCheck, Timer } from "lucide-react"
 import { getCurrentUser, homeFor } from "@/server/auth/guards"
 import { LoginForm } from "./login-form"
-import { Logo } from "@/components/shell/logo"
+import { Logo, LogoMark } from "@/components/shell/logo"
 
 export const metadata: Metadata = { title: "Sign in" }
 
-const points = [
-  { icon: Clock3, title: "Server-timed attempts", body: "Time is kept by the server, never by the device clock." },
-  { icon: WifiOff, title: "Built for weak networks", body: "Answers are journaled locally and synced the moment you reconnect." },
-  { icon: ShieldCheck, title: "Verifiable results", body: "Every issued report carries a code anyone can verify." },
+const guarantees = [
+  { icon: Timer, title: "The server keeps time", body: "Deadlines are fixed on the server when you start. Changing a device clock changes nothing." },
+  { icon: CloudOff, title: "Answers survive outages", body: "Every answer is kept on your device first, then synced. A dropped connection or a refresh loses nothing." },
+  { icon: ShieldCheck, title: "Results you can verify", body: "Each issued report carries a code and QR that anyone can check, without seeing private data." },
 ]
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
@@ -20,39 +20,51 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : undefined
 
   return (
-    <main id="main" className="grid min-h-dvh lg:grid-cols-[1.05fr_1fr]">
-      <section className="surface-ink relative hidden flex-col justify-between overflow-hidden p-10 lg:flex">
-        <div className="bg-grid mask-radial pointer-events-none absolute inset-0 opacity-40" aria-hidden />
-        <Logo className="relative" />
-        <div className="relative max-w-md space-y-8">
-          <h1 className="text-4xl leading-tight font-semibold tracking-tight text-balance">
-            Fair examinations, even when the network is not.
+    <main id="main" className="grid min-h-dvh lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+      <section className="surface-ink bg-ruled relative hidden overflow-hidden lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16" aria-label="About ExamVault">
+        <div className="flex items-center gap-2.5">
+          <LogoMark className="bg-white text-[oklch(0.3_0.06_192)]" />
+          <span className="font-display text-lg font-semibold">ExamVault</span>
+        </div>
+
+        <div className="max-w-xl">
+          <h1 className="font-display text-[2.6rem] leading-[1.08] font-semibold xl:text-5xl">
+            Online exams that stay fair when the network does not.
           </h1>
-          <ul className="space-y-5">
-            {points.map(({ icon: Icon, title, body }) => (
+          <ul className="mt-10 flex flex-col gap-6">
+            {guarantees.map(({ icon: Icon, title, body }) => (
               <li key={title} className="flex gap-4">
-                <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-white/10">
-                  <Icon className="size-5" aria-hidden />
+                <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border border-white/15 bg-white/5">
+                  <Icon className="size-[1.1rem]" aria-hidden />
                 </span>
                 <div>
                   <p className="font-medium">{title}</p>
-                  <p className="text-sm text-muted-foreground">{body}</p>
+                  <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">{body}</p>
                 </div>
               </li>
             ))}
           </ul>
         </div>
-        <p className="relative text-xs text-muted-foreground">Technoverse 5.0 Web-e-Thon</p>
+
+        {/* A real fragment of the exam bar: the save status and server clock candidates will see. */}
+        <div className="flex w-fit items-center gap-3 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm" aria-hidden>
+          <span className="inline-flex items-center gap-1.5 text-[oklch(0.85_0.12_150)]">
+            <CheckCircle2 className="size-4" />
+            All answers saved
+          </span>
+          <span className="h-4 w-px bg-white/20" />
+          <span className="font-mono tabular-nums">00:42:17</span>
+          <span className="text-muted-foreground">remaining, server time</span>
+        </div>
       </section>
 
-      <section className="flex items-center justify-center bg-background px-4 py-12 sm:px-8">
-        <div className="w-full max-w-sm space-y-8">
-          <Logo className="lg:hidden" />
-          <div className="space-y-1.5">
-            <h2 className="text-2xl font-semibold tracking-tight">Sign in</h2>
-            <p className="text-sm text-muted-foreground">Use the account your institution created for you.</p>
-          </div>
+      <section className="flex items-center justify-center px-4 py-12 sm:px-8">
+        <div className="w-full max-w-sm">
+          <Logo className="mb-10 lg:hidden" />
+          <h2 className="font-display text-[1.75rem] font-semibold">Sign in</h2>
+          <p className="mt-1.5 mb-8 text-sm text-muted-foreground">Use the account your institution created for you.</p>
           <LoginForm next={safeNext} />
+          <p className="mt-10 text-xs text-muted-foreground">Technoverse 5.0 Web-e-Thon · Secure Examination Management System</p>
         </div>
       </section>
     </main>

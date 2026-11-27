@@ -11,9 +11,9 @@ import { Input } from "@/components/ui/input"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 
 const DEMO = [
-  { role: "Administrator", email: "admin@examvault.test", password: "Admin#2026" },
-  { role: "Examiner", email: "examiner@examvault.test", password: "Examiner#2026" },
-  { role: "Candidate", email: "ayesha@examvault.test", password: "Candidate#2026" },
+  { role: "Administrator", blurb: "Accounts, roles, platform overview, audit log", email: "admin@examvault.test", password: "Admin#2026" },
+  { role: "Examiner", blurb: "Question bank, exams, grading, results, analytics", email: "examiner@examvault.test", password: "Examiner#2026" },
+  { role: "Candidate", blurb: "Take an exam, see published results", email: "ayesha@examvault.test", password: "Candidate#2026" },
 ]
 
 export function LoginForm({ next }: { next?: string }) {
@@ -71,31 +71,35 @@ export function LoginForm({ next }: { next?: string }) {
             <FieldError errors={[errors.password]} />
           </Field>
         </FieldGroup>
-        <Button type="submit" className="h-10 w-full" disabled={isSubmitting}>
+        <Button type="submit" className="h-10 w-full text-[0.95rem]" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="animate-spin" aria-hidden />}
           {isSubmitting ? "Signing in" : "Sign in"}
         </Button>
       </form>
 
-      <div className="space-y-3 rounded-xl border border-dashed p-4">
-        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Demo accounts (fictional data)</p>
-        <div className="grid gap-2 sm:grid-cols-3">
+      <div className="rounded-xl border bg-surface">
+        <p className="border-b px-4 py-2.5 text-xs font-medium text-muted-foreground">Demo accounts with fictional data. Pick a role to fill the form.</p>
+        <ul className="divide-y">
           {DEMO.map((d) => (
-            <Button
-              key={d.email}
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                form.setValue("email", d.email)
-                form.setValue("password", d.password)
-                form.clearErrors()
-              }}
-            >
-              {d.role}
-            </Button>
+            <li key={d.email}>
+              <button
+                type="button"
+                onClick={() => {
+                  form.setValue("email", d.email)
+                  form.setValue("password", d.password)
+                  form.clearErrors()
+                }}
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-muted/60 focus-visible:bg-muted/60"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium">{d.role}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{d.blurb}</span>
+                </span>
+                <span className="text-xs font-medium text-brand-text">Use</span>
+              </button>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
     </div>
   )

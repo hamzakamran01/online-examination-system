@@ -3,7 +3,7 @@ import { CheckCircle2, CircleAlert, ClipboardCheck, PenLine } from "lucide-react
 import { requirePageRole } from "@/server/auth/guards"
 import { getResultsOverview } from "@/server/services/grading"
 import { fmtDateTime, fmtMarks } from "@/lib/format"
-import { Panel, PanelHeader, Stat } from "@/components/shell/page-header"
+import { Panel, PanelHeader, Stat, MetricStrip } from "@/components/shell/page-header"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -20,12 +20,12 @@ export default async function ResultsPage({ params }: PageProps<"/examiner/exams
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <MetricStrip>
         <Stat label="Submitted" value={r.summary.finalized} />
         <Stat label="Still writing" value={r.summary.inProgress} tone={r.summary.inProgress ? "info" : undefined} />
         <Stat label="Needs grading" value={r.summary.ungraded} tone={r.summary.ungraded ? "warning" : undefined} />
         <Stat label="Fully graded" value={r.summary.graded} tone={r.summary.graded ? "success" : undefined} />
-      </div>
+      </MetricStrip>
 
       <Panel>
         <PanelHeader

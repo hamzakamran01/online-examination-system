@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Panel, PanelHeader, PageHeader, Stat } from "@/components/shell/page-header"
+import { Panel, PanelHeader, PageHeader, Stat, MetricStrip } from "@/components/shell/page-header"
 import { requirePageRole } from "@/server/auth/guards"
 import { getPlatformOverview } from "@/server/services/platform"
 import { ActivityChart } from "@/features/platform/activity-chart"
@@ -13,11 +13,11 @@ export default async function Page() {
     <>
       <PageHeader title="Platform overview" />
       <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <MetricStrip>
           {Object.entries(stats).map(([label, value]) => (
             <Stat key={label} label={label} value={value} />
           ))}
-        </div>
+        </MetricStrip>
         <Panel>
           <PanelHeader title="Needs attention" />
           {attention.length ? (

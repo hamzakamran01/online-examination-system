@@ -1,7 +1,7 @@
 "use client"
 import { useState } from "react"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
-import { Panel, PanelHeader, Stat } from "@/components/shell/page-header"
+import { Panel, PanelHeader, Stat, MetricStrip } from "@/components/shell/page-header"
 import type { ExamAnalytics } from "@/server/services/analytics"
 const flagHelp: Record<string, string> = {
   "Not enough data": "Fewer than five graded responses.",
@@ -33,7 +33,7 @@ export function Insights({ data }: { data: ExamAnalytics }) {
           {pending} {pending === 1 ? "attempt includes" : "attempts include"} ungraded written answers. Scores may rise.
         </p>
       )}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+      <MetricStrip className="md:grid-cols-3 lg:grid-cols-3">
         {Object.entries({
           "Finalized attempts": stats.count,
           Mean: stats.mean,
@@ -44,7 +44,7 @@ export function Insights({ data }: { data: ExamAnalytics }) {
           <Stat key={label} label={label} value={number(value)} />
         ))}
         {stats.passRate !== null && <Stat label="Pass rate" value={number(stats.passRate) + "%"} />}
-      </div>
+      </MetricStrip>
       <Panel>
         <PanelHeader
           title="Score distribution"
