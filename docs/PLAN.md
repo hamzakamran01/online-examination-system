@@ -1,6 +1,6 @@
 # Build plan
 
-**Status:** Phase 0 done (deployed) | Phase 1 built, verification next (V.0) | Codex on `codex/secondary`: CX-1 imports done, CX-2 analytics done, CX-3 reports in progress, CX-4 prefs + scratchpad and CX-5 discrimination queued
+**Status:** Phase 0 done (deployed) | Phase 1 built, verification gate in progress (V.0) | Codex CX-1 to CX-3 merged into main; CX-4 in review; CX-5 to CX-10 queued
 
 Rules: tick only when it works end to end on the live URL. "built" = code merged, not yet verified in a browser.
 Each task maps to SPEC IDs. Brief sections define WHAT we build; this order follows dependencies and marks at risk.
@@ -25,6 +25,7 @@ Each task maps to SPEC IDs. Brief sections define WHAT we build; this order foll
 - [ ] P1.9 Authz pass (C-3.1.3, T-6.1)
 
 ### V: verification gate (next, ~1 h) - must pass before Phase 2
+- [ ] V.0a 5 s in-flight grace at the deadline: saves accepted until deadline + 5 s, finalization after the grace, submitted_at = deadline, candidate UI locks at zero (DECISIONS D10, T-6.2a)
 - [ ] V.0 Tamper-proof countdown: count down from the last server reading with `performance.now()` (monotonic), resync on every save and on focus; device clock changes have no effect (T-6.2a)
 - [ ] V.1 Live walkthrough as admin: create user, change role, deactivate, reset password, audit log entries
 - [ ] V.2 Live walkthrough as examiner: create question of each type, create exam, assign, enroll, checklist, publish, preview (sandbox)
@@ -34,12 +35,12 @@ Each task maps to SPEC IDs. Brief sections define WHAT we build; this order foll
 
 ## Phase 2: finish core, then integrate secondary
 1. Grading and results (completes the end-to-end workflow)
-   - [ ] P2.1 Manual grading queue for written answers, marks validated 0..max, feedback, totals recalculated in a transaction (C-3.7.2, C-3.7.3, T-6.2c)
-   - [ ] P2.2 Results review screen, publish gated on all graded, candidate result page, completed exams retained read-only (C-3.8.1, C-3.8.3)
+   - [ ] P2.1 Manual grading queue for written answers, marks validated 0..max, feedback, totals recalculated in a transaction, per-answer grading history (previous mark, new mark, grader, comment, time) recorded in audit_log and shown under each answer (C-3.7.2, C-3.7.3, T-6.2c)
+   - [ ] P2.2 Results review screen, publish gated on all graded, candidate result page, completed exams retained read-only; regrade after publication only with a reason (totals recalculated, old report code shows Replaced); candidates can view their own submitted answers right after submitting, without marks or keys until publication (C-3.8.1, C-3.8.3)
 2. Core monitoring (moved up from Phase 3 to protect core marks)
    - [ ] P2.3 Live monitor, polled every 5 s: per candidate status NOT_STARTED / WRITING / DISCONNECTED (no save or heartbeat for 30 s) / SUBMITTED, answered count, time left, last seen, signal count; summary counts by status; lazy-finalize expired attempts before building the view (C-3.6.1)
    - [ ] P2.4 Announcements: examiner posts, candidates see within one poll (C-3.6.2)
-   - [ ] P2.5 Incident log: client signals (tab away counted only when >= 1 s, with server-recorded duration; fullscreen exit; offline; reconnect) + server events (device change, late save rejected), "signal for review" wording and disclaimer. Signals NEVER end or penalise an attempt (C-3.6.3)
+   - [ ] P2.5 Incident log: client signals (tab away counted only when >= 1 s, with server-recorded duration; fullscreen exit; offline; reconnect) + server events (device change, late save rejected), "signal for review" wording and disclaimer. Signals NEVER end or penalise an attempt. Client-reported signals are rate limited and capped at 200 per attempt (C-3.6.3, T-6.1)
 3. Integrate Codex branch (merge `codex/secondary`, review, wire up)
    - [ ] P2.6 Analytics tab + admin read-only access (C-3.8.2, S-4.5) - Codex CX-2 + CX-5 (discrimination index, quality flags)
    - [ ] P2.7 Imports link + enroll-from-import (S-4.4a, S-4.4b) - Codex CX-1
@@ -60,13 +61,14 @@ Each task maps to SPEC IDs. Brief sections define WHAT we build; this order foll
 - [ ] P4.4 Rehearse DEMO.md twice on the live URL; final push + deploy before deadline (SUB-7.4)
 
 ## Reference repos (reviewed, see DECISIONS D9)
-Ideas reimplemented, no code copied: monotonic countdown (V.0), live monitor states (P2.3), extension cap (P3.2), discrimination analytics (CX-5), fair generator (P3.4).
+Ideas reimplemented, no code copied: monotonic countdown (V.0), live monitor states (P2.3), extension cap (P3.2), discrimination analytics (CX-5), fair generator (P3.4), grading history and reason-gated regrade (P2.1, P2.2), own-answers view after submit (P2.2), signal cap (P2.5), in-flight grace (V.0a). Sources: online-exam-platform, exam-platform-web, quiz-and-examination-platform, assess.
 
 ## Cut list (drop in this order if behind)
 1. I-5.2 balanced papers (stretch)
 2. Exam summary PDF (keep candidate result PDF)
 3. Fullscreen-exit signal (keep tab-hidden, offline and device change)
 4. Question import (keep candidate import)
+4b. Paste-text question format (optional idea from assess repo)
 5. Scroll layout option in workspace prefs (keep font size + theme)
 6. Analytics charts reduced to table + one distribution chart
 Never cut: server timer, frozen paper, idempotent submit, authz, publish gating, core monitoring, offline sync status.

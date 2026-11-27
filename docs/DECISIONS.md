@@ -41,7 +41,7 @@ Append new entries at the bottom. Format: decision, why, alternative rejected.
 - Rejected: auto-terminating attempts after tab switches (brief 3.6: signals are not proof); client-side answer banks and mock logins (security).
 - Rejected: building on any repo wholesale (license risk, porting cost exceeds writing it).
 
-## D10 Deadline grace (pending user decision)
-- Default: strict cutoff, saves after `deadline_at` are rejected and logged.
-- Option under consideration: 5 s grace only for requests in flight at the deadline; candidate UI still locks at zero; documented trade-off for judges.
-- Rejected: 30 s grace as used by the reference repos (reads as extra time, against brief 5.3 "no extra time").
+## D10 Deadline grace: 5 s for in-flight requests (decided)
+- Saves are accepted until deadline_at + 5 s; the candidate UI locks at zero, so only requests already in transit benefit. Expired attempts are finalized after the grace with submitted_at = deadline_at.
+- Why: an honest last answer sent at 0:00 must not be lost to network latency; 5 s gives no usable extra time. Three reference repos use the same pattern.
+- Rejected: strict 0 s cutoff (drops in-flight answers), 30 s grace (reads as extra time, against brief 5.3).
