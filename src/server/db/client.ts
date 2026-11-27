@@ -1,20 +1,35 @@
 import "server-only"
-import { drizzle } from "drizzle-orm/node-postgres"
+import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres"
 import { Pool } from "pg"
 import * as schema from "./schema"
 
-const globalForDb = globalThis as unknown as { pgPool?: Pool }
+type Database = NodePgDatabase<typeof schema>
 
-function createPool() {
+const globalForDb = globalThis as unknown as { pgPool?: Pool; db?: Database }
+
+/**
+ * Lazily created: importing this module never touches the environment or the
+ * network, so `next build` (which imports every route to collect page data)
+ * works without DATABASE_URL. The first real query creates the pool and fails
+ * with a clear message if the variable is missing at runtime.
+ */
+function getDb(): Database {
+  if (globalForDb.db) return globalForDb.db
   const connectionString = process.env.DATABASE_URL
-  if (!connectionString) throw new Error("DATABASE_URL is not set")
-  return new Pool({ connectionString, max: 5, idleTimeoutMillis: 10_000 })
+  if (!connectionString) throw new Error("DATABASE_URL is not set. Add it to .env.local or the hosting environment variables.")
+  const pool = globalForDb.pgPool ?? new Pool({ connectionString, max: 5, idleTimeoutMillis: 10_000 })
+  globalForDb.pgPool = pool
+  globalForDb.db = drizzle(pool, { schema })
+  return globalForDb.db
 }
 
-/** One pool per server instance (reused across hot reloads in dev). */
-const pool = globalForDb.pgPool ?? createPool()
-if (process.env.NODE_ENV !== "production") globalForDb.pgPool = pool
+export const db = new Proxy({} as Database, {
+  get(_target, prop) {
+    const real = getDb()
+    const value = Reflect.get(real, prop, real)
+    return typeof value === "function" ? value.bind(real) : value
+  },
+})
 
-export const db = drizzle(pool, { schema })
-export type Db = typeof db
-export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0]
+export type Db = Database
+export type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0]

@@ -12,8 +12,17 @@ import * as schema from "@/server/db/schema"
  * `role` and `active` are server-controlled fields (input: false), so a client
  * can never set them through the auth API.
  */
+/** Explicit URL first, then Vercel's system variables (production domain, then this deployment). */
+const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL
+const baseURL = process.env.BETTER_AUTH_URL || (vercelHost ? `https://${vercelHost}` : "http://localhost:3000")
+const trustedOrigins = [baseURL, process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}`, process.env.VERCEL_BRANCH_URL && `https://${process.env.VERCEL_BRANCH_URL}`].filter(
+  (o): o is string => Boolean(o)
+)
+
 export const auth = betterAuth({
   appName: "ExamVault",
+  baseURL,
+  trustedOrigins,
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: { user: schema.user, session: schema.session, account: schema.account, verification: schema.verification },
