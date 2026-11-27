@@ -1,0 +1,4 @@
+type,topic,difficulty,marks,stem,options,correct,scheme,rubric
+single,Data structures,easy,1,Which structure uses FIFO order?,Stack|Queue|Tree,2,,
+multi,Networks,medium,2,Select the transport layer protocols.,TCP|IP|UDP,1|3,partial,
+written,Databases,hard,4,Explain how a transaction preserves consistency.,,,,Award two marks for the invariant and two for a worked example.

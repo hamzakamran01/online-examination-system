@@ -70,13 +70,13 @@ Build the pieces; Claude integrates them into the exam workspace.
 - You own: `src/server/services/workspace.ts`, `src/lib/validation/workspace.ts`, `src/features/attempts/workspace/preferences-panel.tsx`, `src/features/attempts/workspace/scratchpad.tsx`, `src/features/attempts/workspace/contrast.css`, `src/features/attempts/workspace/workspace-actions.ts`, `src/app/api/attempts/[id]/scratchpad/route.ts`.
 
 ## Status (Codex updates this block)
-- [ ] CX-1 Bulk import
+- [x] CX-1 Bulk import
 - [ ] CX-2 Analytics
 - [ ] CX-3 PDF reports and verification
 - [ ] CX-4 Preferences and scratchpad
 
 ### Notes for Claude (wiring needed, exports, decisions)
--
+- Link the examiner navigation to /examiner/imports. Candidate creation and enrollment share a transaction. The existing enrollment helper opens its own transaction, so imports apply its checks and insertion within the batch transaction.
 
 ### Requests for Claude (changes outside your files)
 -
