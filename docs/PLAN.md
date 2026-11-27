@@ -1,6 +1,6 @@
 # Build plan
 
-**Status:** Phases 0 and 1 verified | P2.1, P2.2 done | P2.3 to P2.5 and P3.1, P3.2 built on `feat/monitoring-resilience`, verified locally (40 service checks + browser walkthrough), awaiting merge and live check | next P2.10, P3.3 | `[~]` = built and verified locally, not yet on the live URL
+**Status:** Phases 0 and 1 verified | P2.1, P2.2 done | P2.3 to P2.5 and P3.1, P3.2 built on `feat/monitoring-resilience`, verified locally (40 service checks + browser walkthrough), awaiting merge and live check | P2.10, P3.3 built and verified locally | next: live check after merge, then second innovation (depth over breadth) | `[~]` = built and verified locally, not yet on the live URL
 
 Rules: tick only when it works end to end on the live URL. "built" = code merged, not yet verified in a browser.
 Each task maps to SPEC IDs. Brief sections define WHAT we build; this order follows dependencies and marks at risk.
@@ -46,12 +46,12 @@ Each task maps to SPEC IDs. Brief sections define WHAT we build; this order foll
    - [ ] P2.7 Imports link + enroll-from-import (S-4.4a, S-4.4b) - Codex CX-1
    - [ ] P2.8 PDF download buttons, verify page (S-4.2, S-4.6) - Codex CX-3
    - [ ] P2.9 Preferences panel + scratchpad inside the workspace (S-4.7, S-4.8) - Codex CX-4
-4. - [ ] P2.10 Network banner and per-question sync markers (S-4.1)
+4. - [~] P2.10 Network banner and per-question sync markers (S-4.1)
 
 ## Phase 3: innovation 5.3 (see INNOVATION.md)
 - [~] P3.1 Heartbeat: server-measured connection gaps recorded as `connection_gap` with duration (I-5.3)
 - [~] P3.2 Examiner grants extension: default = measured gap, reason required, total capped (15 min per attempt), attempt row locked while granting, audit log, candidate notified, deadline recomputed (I-5.3)
-- [ ] P3.3 T-2 min unsynced-answers warning; resume-on-another-device demo path (I-5.3)
+- [~] P3.3 T-2 min unsynced-answers warning; resume-on-another-device demo path (I-5.3)
 - [ ] P3.4 (stretch) Fair paper generation: exam blueprint = N questions per (type, difficulty, marks); each candidate draws the least-used questions first with random ties, so every paper has identical difficulty mix and total marks (I-5.2)
 
 ## Phase 4: FEATURE FREEZE (final 1:30)

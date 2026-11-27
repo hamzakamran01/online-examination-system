@@ -13,8 +13,9 @@ import type { AnswerResponse } from "@/lib/domain/paper"
 
 export type Entry = { response: AnswerResponse | null; flagged: boolean; seq: number }
 export type SyncState = "saved" | "saving" | "offline" | "retrying" | "error"
-export type Snapshot = { state: SyncState; pending: number; lastSyncedAt: number | null }
-export const SERVER_SNAPSHOT: Snapshot = { state: "saved", pending: 0, lastSyncedAt: null }
+/** `pendingIds`: items whose latest change is only on this device (per-question sync markers, S-4.1). */
+export type Snapshot = { state: SyncState; pending: number; pendingIds: readonly string[]; lastSyncedAt: number | null }
+export const SERVER_SNAPSHOT: Snapshot = { state: "saved", pending: 0, pendingIds: [], lastSyncedAt: null }
 type FlushOutcome = { kind: "finalized"; reason: string } | { kind: "unauthorized" }
 type Listener = () => void
 
@@ -89,7 +90,7 @@ export class SyncEngine {
   }
   getSnapshot = () => this.snapshot
   private emit() {
-    this.snapshot = { state: this.state, pending: this.pendingCount, lastSyncedAt: this.lastSyncedAt }
+    this.snapshot = { state: this.state, pending: this.pendingCount, pendingIds: Object.keys(this.pending), lastSyncedAt: this.lastSyncedAt }
     this.listeners.forEach((l) => l())
   }
   private setState(s: SyncState) {

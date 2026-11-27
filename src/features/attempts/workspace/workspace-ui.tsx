@@ -63,12 +63,15 @@ export function Palette({
   visited,
   current,
   onJump,
+  unsynced,
 }: {
   items: PaperItem[]
   answers: Record<string, Entry>
   visited: Set<string>
   current: number
   onJump: (i: number) => void
+  /** Items whose latest change is only on this device while sync is stalled (S-4.1). */
+  unsynced?: ReadonlySet<string>
 }) {
   const counts = { answered: 0, blank: 0, unseen: 0, flagged: 0 }
   for (const it of items) {
@@ -101,12 +104,13 @@ export function Palette({
           const seen = visited.has(it.itemId)
           const flagged = !!a?.flagged
           const state = isAnswered ? "answered" : seen ? "opened, not answered" : "not visited"
+          const local = !!unsynced?.has(it.itemId)
           return (
             <li key={it.itemId}>
               <button
                 type="button"
                 onClick={() => onJump(i)}
-                aria-label={`Question ${i + 1}, ${state}${flagged ? ", marked for review" : ""}`}
+                aria-label={`Question ${i + 1}, ${state}${flagged ? ", marked for review" : ""}${local ? ", not yet saved to the server" : ""}`}
                 aria-current={i === current ? "step" : undefined}
                 className={cn(
                   "relative grid aspect-square min-h-10 w-full place-items-center rounded-md border text-sm font-medium tabular-nums transition-colors duration-150",
@@ -120,6 +124,11 @@ export function Palette({
                 {flagged && (
                   <span className="absolute -top-1 -right-1 grid size-4 place-items-center rounded-full bg-time text-[oklch(0.25_0.05_60)] ring-2 ring-surface" aria-hidden>
                     <Flag className="size-2.5" />
+                  </span>
+                )}
+                {local && (
+                  <span className="absolute -bottom-1 -left-1 grid size-4 place-items-center rounded-full bg-warning-soft text-warning-text ring-2 ring-surface" aria-hidden>
+                    <CloudOff className="size-2.5" />
                   </span>
                 )}
               </button>
@@ -149,6 +158,13 @@ export function Palette({
           <dt>For review</dt>
           <dd className="ml-auto font-medium text-foreground tabular-nums">{counts.flagged}</dd>
         </div>
+        {!!unsynced?.size && (
+          <div className="col-span-2 flex items-center gap-2 text-warning-text">
+            <CloudOff className="size-3.5" aria-hidden />
+            <dt>On this device only</dt>
+            <dd className="ml-auto font-medium tabular-nums">{unsynced.size}</dd>
+          </div>
+        )}
       </dl>
     </div>
   )
@@ -166,6 +182,7 @@ export function QuestionView({
   disabled,
   onAnswer,
   headingRef,
+  unsynced,
 }: {
   item: PaperItem
   index: number
@@ -174,6 +191,8 @@ export function QuestionView({
   disabled: boolean
   onAnswer: (r: AnswerResponse | null) => void
   headingRef?: React.Ref<HTMLHeadingElement>
+  /** Latest change is only on this device while sync is stalled (S-4.1). */
+  unsynced?: boolean
 }) {
   const selected = entry?.response?.kind === "choice" ? entry.response.selected : []
   const text = entry?.response?.kind === "text" ? entry.response.text : ""
@@ -190,6 +209,12 @@ export function QuestionView({
           {fmtMarks(item.marks)} mark{item.marks === 1 ? "" : "s"}
           {item.type === "multi" && item.scheme === "partial" ? ", partial credit" : ""}
         </span>
+        {unsynced && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning-text">
+            <CloudOff className="size-3" aria-hidden />
+            Kept on this device, not saved yet
+          </span>
+        )}
         <span className="ml-auto text-xs font-medium text-brand-text">{TYPE_HINT[item.type]}</span>
       </header>
 

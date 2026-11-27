@@ -27,6 +27,7 @@ import { PreferencesPanel } from "./preferences-panel"
 import { Scratchpad } from "./scratchpad"
 import { useAttemptRuntime } from "./use-attempt-runtime"
 import { AnnouncementBanner } from "./announcement-banner"
+import { NetworkBanner, UNSYNCED_WARNING_MS } from "./network-banner"
 import "./contrast.css"
 
 type AnswerMap = Record<string, Entry>
@@ -169,6 +170,14 @@ export function ExamWorkspace({ view, preferences }: { view: AttemptView; prefer
         if (liveRef.current) liveRef.current.textContent = msg
       }
     }
+    // T-2 min: unsynced answers get one loud, specific warning (I-5.3). The banner stays up until they sync.
+    if (remaining > 0 && remaining <= UNSYNCED_WARNING_MS && engine.pendingCount && !warned.current.has(-2)) {
+      warned.current.add(-2)
+      const msg = `Under 2 minutes left and ${engine.pendingCount} answer${engine.pendingCount === 1 ? " is" : "s are"} not on the server yet. Reconnect now.`
+      toast.error(msg, { duration: 15_000 })
+      if (liveRef.current) liveRef.current.textContent = msg
+      void engine.flush()
+    }
     if (timeUp && !expiredRef.current) {
       expiredRef.current = true
       // Send anything still queued (the server accepts in-flight saves for a short grace), then finalize.
@@ -217,6 +226,9 @@ export function ExamWorkspace({ view, preferences }: { view: AttemptView; prefer
   const scrollLayout = prefs.layout === "scroll"
   const item = items[current]
   const pending = sync$.pending
+  // Per-question markers only while sync is stalled; during normal saving they would flicker on every keystroke.
+  const stalled = sync$.state === "offline" || sync$.state === "retrying" || sync$.state === "error"
+  const unsynced = React.useMemo(() => new Set(stalled ? sync$.pendingIds : []), [stalled, sync$.pendingIds])
   const unansweredIdx = items.map((it, i) => (answered(answers[it.itemId]?.response) ? -1 : i)).filter((i) => i >= 0)
   const flaggedIdx = items.map((it, i) => (answers[it.itemId]?.flagged ? i : -1)).filter((i) => i >= 0)
   const low = remaining <= 5 * 60_000
@@ -254,7 +266,7 @@ export function ExamWorkspace({ view, preferences }: { view: AttemptView; prefer
   const palette = (
     <div className="flex flex-col gap-4">
       <div className="rounded-xl border bg-surface p-4">
-        <Palette items={items} answers={answers} visited={visited} current={mode === "question" ? current : -1} onJump={jump} />
+        <Palette items={items} answers={answers} visited={visited} current={mode === "question" ? current : -1} onJump={jump} unsynced={unsynced} />
         <Button variant="outline" className="mt-4 w-full" onClick={() => setMode("review")} disabled={!!lockState}>
           Review and submit
         </Button>
@@ -317,6 +329,18 @@ export function ExamWorkspace({ view, preferences }: { view: AttemptView; prefer
         </div>
       )}
 
+      <NetworkBanner
+        state={sync$.state}
+        pending={pending}
+        lastSyncedAt={sync$.lastSyncedAt}
+        serverReachable={runtime.serverReachable}
+        remaining={remaining}
+        locked={!!lockState}
+        onRetry={() => {
+          void engine.flush()
+          void runtime.beatNow()
+        }}
+      />
       <AnnouncementBanner all={runtime.announcements} visible={runtime.visible} onDismiss={runtime.dismiss} />
 
       <div
@@ -388,6 +412,7 @@ export function ExamWorkspace({ view, preferences }: { view: AttemptView; prefer
                     index={i}
                     total={items.length}
                     entry={answers[it.itemId]}
+                    unsynced={unsynced.has(it.itemId)}
                     disabled={!!lockState}
                     onAnswer={(r) => {
                       setVisited((prev) => (prev.has(it.itemId) ? prev : new Set(prev).add(it.itemId)))
@@ -409,6 +434,7 @@ export function ExamWorkspace({ view, preferences }: { view: AttemptView; prefer
                 index={current}
                 total={items.length}
                 entry={answers[item.itemId]}
+                unsynced={unsynced.has(item.itemId)}
                 disabled={!!lockState}
                 headingRef={headingRef}
                 onAnswer={(r) => update(item.itemId, { response: r }, item.type === "written" ? 900 : 300)}

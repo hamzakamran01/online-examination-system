@@ -80,7 +80,7 @@ Scoring notes from the brief: partial credit exists; non-functional placeholders
 
 | ID | Requirement | Acceptance criteria | Demo | Status |
 | --- | --- | --- | --- | --- |
-| S-4.1 | Network-aware interface: detect connectivity problems; show save/sync status; clear feedback when unstable or offline | Global pill: Saved / Saving / Offline, N pending / Sync failed; per-question sync marker; detects offline via events + failed requests + heartbeat | Turn wifi off mid-exam | todo |
+| S-4.1 | Network-aware interface: detect connectivity problems; show save/sync status; clear feedback when unstable or offline | Global pill: Saved / Saving / Offline, N pending / Sync failed; per-question sync marker; detects offline via events + failed requests + heartbeat | Turn wifi off mid-exam | built, verified locally |
 | S-4.2 | Downloadable readable PDF reports from real data, with access restrictions | Candidate result PDF (own, published only) and exam summary PDF (owner examiner/admin) | Download both | todo |
 | S-4.3 | Sandbox: examiner previews exam as candidate; no effect on real submissions, results, stats | Sandbox attempt flagged is_sandbox; excluded from every query of results/analytics/monitor; clear "Sandbox" banner; resettable | Preview, then show stats unchanged | todo |
 | S-4.4a | Bulk import candidates from CSV/JSON with validation and clear errors | Preview with row-level errors (line, field, message) before commit; valid rows create/enroll in one transaction | Import a file with 2 bad rows | todo |

@@ -203,5 +203,5 @@ export function useAttemptRuntime({
   )
 
   const visible = announcements.filter((a) => !dismissed.includes(a.id))
-  return { announcements, visible, dismiss, serverReachable }
+  return { announcements, visible, dismiss, serverReachable, beatNow: beat }
 }
