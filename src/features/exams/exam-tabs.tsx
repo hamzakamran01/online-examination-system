@@ -12,6 +12,7 @@ export function ExamTabs({ examId }: { examId: string }) {
     { href: `${base}/questions`, label: "Questions" },
     { href: `${base}/candidates`, label: "Candidates" },
     { href: `${base}/review`, label: "Review and publish" },
+    { href: `${base}/results`, label: "Grading and results" },
     { href: `${base}/analytics`, label: "Analytics" },
   ]
   return (

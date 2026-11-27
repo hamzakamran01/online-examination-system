@@ -16,41 +16,41 @@ Scoring notes from the brief: partial credit exists; non-functional placeholders
 
 | ID | Requirement | Acceptance criteria | Demo | Status |
 | --- | --- | --- | --- | --- |
-| C-3.1.1 | Secure authentication for admin, examiner, candidate, with an appropriate experience per role | Email + password login, hashed passwords, httpOnly DB session; each role lands on its own home and nav; logout invalidates session | Log in as each role, show different home | todo |
-| C-3.1.2 | Admins manage user accounts and role assignments; permissions enforced on backend, not by hiding UI | Admin can create, edit, deactivate users and change role; every mutation re-checks role server side; non-admin call to admin API returns 403 | Change a role live; call admin API as candidate, get 403 | todo |
-| C-3.1.3 | Examiners and candidates access only exams, records and actions they are authorized for | Examiner can read/write only own exams and questions; candidate only enrolled exams and own attempts; foreign IDs return 404/403 | Paste another examiner's exam URL, get denied | todo |
+| C-3.1.1 | Secure authentication for admin, examiner, candidate, with an appropriate experience per role | Email + password login, hashed passwords, httpOnly DB session; each role lands on its own home and nav; logout invalidates session | Log in as each role, show different home | done |
+| C-3.1.2 | Admins manage user accounts and role assignments; permissions enforced on backend, not by hiding UI | Admin can create, edit, deactivate users and change role; every mutation re-checks role server side; non-admin call to admin API returns 403 | Change a role live; call admin API as candidate, get 403 | done |
+| C-3.1.3 | Examiners and candidates access only exams, records and actions they are authorized for | Examiner can read/write only own exams and questions; candidate only enrolled exams and own attempts; foreign IDs return 404/403 | Paste another examiner's exam URL, get denied | done |
 
 ## 3.2 Examination Management
 
 | ID | Requirement | Acceptance criteria | Demo | Status |
 | --- | --- | --- | --- | --- |
-| C-3.2.1 | Create and configure exams with title, instructions, schedule, duration, total marks and settings | Form validates window end > start, duration > 0 and fits window; total marks equals sum of assigned question marks before publish; settings: shuffle questions, shuffle options, results release mode | Create an exam end to end | todo |
-| C-3.2.2 | Lifecycle draft, published, ongoing, completed; candidates cannot access before availability | Status shown everywhere; transitions enforced server side; candidate start before window or on draft returns error | Show a published-but-upcoming exam is locked for a candidate | todo |
-| C-3.2.3 | Review exam details before publication; manage exams through an appropriate interface | Pre-publish review page with checklist (questions, marks match, enrolled count, window valid); publish blocked if checks fail; exam list with filters by status | Review screen, publish button enabling | todo |
+| C-3.2.1 | Create and configure exams with title, instructions, schedule, duration, total marks and settings | Form validates window end > start, duration > 0 and fits window; total marks equals sum of assigned question marks before publish; settings: shuffle questions, shuffle options, results release mode | Create an exam end to end | done |
+| C-3.2.2 | Lifecycle draft, published, ongoing, completed; candidates cannot access before availability | Status shown everywhere; transitions enforced server side; candidate start before window or on draft returns error | Show a published-but-upcoming exam is locked for a candidate | done |
+| C-3.2.3 | Review exam details before publication; manage exams through an appropriate interface | Pre-publish review page with checklist (questions, marks match, enrolled count, window valid); publish blocked if checks fail; exam list with filters by status | Review screen, publish button enabling | done |
 
 ## 3.3 Question Management
 
 | ID | Requirement | Acceptance criteria | Demo | Status |
 | --- | --- | --- | --- | --- |
-| C-3.3.1 | Reusable question bank with categories/topics and difficulty; create, edit, assign to exams | Bank list filterable by topic, difficulty, type; CRUD with validation; assign from bank to exam with per-exam marks | Filter bank, add 3 questions to exam | todo |
-| C-3.3.2 | Single-answer MCQ, multiple-select, written response, with appropriate marking schemes | Single: exactly 1 correct option; multi: 1+ correct, scheme all-or-nothing or partial; written: max marks + optional rubric | Create one of each type | todo |
-| C-3.3.3 | Randomize objective questions or answer choices where applicable; preserve marking scheme and assignment for an active attempt | Per-candidate order seeded at start; snapshot stored on attempt; editing bank or exam after start does not change an active attempt | Edit a question mid-attempt, candidate still sees original | todo |
+| C-3.3.1 | Reusable question bank with categories/topics and difficulty; create, edit, assign to exams | Bank list filterable by topic, difficulty, type; CRUD with validation; assign from bank to exam with per-exam marks | Filter bank, add 3 questions to exam | done |
+| C-3.3.2 | Single-answer MCQ, multiple-select, written response, with appropriate marking schemes | Single: exactly 1 correct option; multi: 1+ correct, scheme all-or-nothing or partial; written: max marks + optional rubric | Create one of each type | done |
+| C-3.3.3 | Randomize objective questions or answer choices where applicable; preserve marking scheme and assignment for an active attempt | Per-candidate order seeded at start; snapshot stored on attempt; editing bank or exam after start does not change an active attempt | Edit a question mid-attempt, candidate still sees original | done |
 
 ## 3.4 Candidate Management
 
 | ID | Requirement | Acceptance criteria | Demo | Status |
 | --- | --- | --- | --- | --- |
-| C-3.4.1 | Examiners enroll candidates and view enrollment info | Enroll by search/multi-select or import; enrollment table with attempt status per candidate; unenroll blocked once attempt exists | Enroll 2 candidates, view table | todo |
-| C-3.4.2 | Candidates see available, upcoming and completed exams with instructions and access status | Three grouped sections; each card shows window, duration, marks, status and why it is locked or open | Candidate home | todo |
-| C-3.4.3 | Restrict entry to eligible candidates; enforce the availability window | Start requires enrollment + published + now within window, checked on server; message explains reason | Non-enrolled candidate is refused | todo |
+| C-3.4.1 | Examiners enroll candidates and view enrollment info | Enroll by search/multi-select or import; enrollment table with attempt status per candidate; unenroll blocked once attempt exists | Enroll 2 candidates, view table | done |
+| C-3.4.2 | Candidates see available, upcoming and completed exams with instructions and access status | Three grouped sections; each card shows window, duration, marks, status and why it is locked or open | Candidate home | done |
+| C-3.4.3 | Restrict entry to eligible candidates; enforce the availability window | Start requires enrollment + published + now within window, checked on server; message explains reason | Non-enrolled candidate is refused | done |
 
 ## 3.5 Examination Interface
 
 | ID | Requirement | Acceptance criteria | Demo | Status |
 | --- | --- | --- | --- | --- |
-| C-3.5.1 | Accessible workspace with questions, marks, remaining time, navigation; distinguish answered, unanswered, marked for review | Question palette with 3 visually and textually distinct states; timer with aria-live warnings at 5 and 1 min; keyboard navigation | Navigate, flag a question | todo |
-| C-3.5.2 | Autosave answers; preserve progress and remaining time on refresh or return | Debounced save per change; save status visible; refresh restores answers, flags, position and server-derived remaining time | Refresh mid-exam | todo |
-| C-3.5.3 | Review progress and submit; enforce time limit; finalize at expiry with answers accepted in time | Review screen lists unanswered/flagged before confirm; at deadline client locks and server finalizes; late saves rejected | Let a short exam expire | todo |
+| C-3.5.1 | Accessible workspace with questions, marks, remaining time, navigation; distinguish answered, unanswered, marked for review | Question palette with 3 visually and textually distinct states; timer with aria-live warnings at 5 and 1 min; keyboard navigation | Navigate, flag a question | done |
+| C-3.5.2 | Autosave answers; preserve progress and remaining time on refresh or return | Debounced save per change; save status visible; refresh restores answers, flags, position and server-derived remaining time | Refresh mid-exam | done |
+| C-3.5.3 | Review progress and submit; enforce time limit; finalize at expiry with answers accepted in time | Review screen lists unanswered/flagged before confirm; at deadline client locks and server finalizes; late saves rejected | Let a short exam expire | done |
 
 ## 3.6 Examination Monitoring
 
@@ -64,17 +64,17 @@ Scoring notes from the brief: partial credit exists; non-functional placeholders
 
 | ID | Requirement | Acceptance criteria | Demo | Status |
 | --- | --- | --- | --- | --- |
-| C-3.7.1 | Auto-grade objective responses per marking scheme incl. multi-select rules | Graded at finalize from frozen snapshot; multi-select all-or-nothing or partial (per correct minus per wrong, floor 0) | Show multi-select partial score | todo |
-| C-3.7.2 | Examiners review and manually grade written responses, validated against assigned marks | Grading queue per exam; marks input 0..max (step 0.5) validated both sides; optional feedback | Grade a written answer, try invalid mark | todo |
-| C-3.7.3 | Accurate totals, consistent grading state; review results before publication | Total recomputed server side in a transaction; attempt grading_status pending/graded; publish blocked while ungraded | Results review screen | todo |
+| C-3.7.1 | Auto-grade objective responses per marking scheme incl. multi-select rules | Graded at finalize from frozen snapshot; multi-select all-or-nothing or partial (per correct minus per wrong, floor 0) | Show multi-select partial score | done |
+| C-3.7.2 | Examiners review and manually grade written responses, validated against assigned marks | Grading queue per exam; marks input 0..max (step 0.5) validated both sides; optional feedback | Grade a written answer, try invalid mark | done |
+| C-3.7.3 | Accurate totals, consistent grading state; review results before publication | Total recomputed server side in a transaction; attempt grading_status pending/graded; publish blocked while ungraded | Results review screen | done |
 
 ## 3.8 Results & Analytics
 
 | ID | Requirement | Acceptance criteria | Demo | Status |
 | --- | --- | --- | --- | --- |
-| C-3.8.1 | Controlled result publication; candidates see only own published results | Publish action (with confirm) sets results_published_at; candidate result endpoint checks owner + published | Candidate sees result only after publish | todo |
+| C-3.8.1 | Controlled result publication; candidates see only own published results | Publish action (with confirm) sets results_published_at; candidate result endpoint checks owner + published | Candidate sees result only after publish | done |
 | C-3.8.2 | Exam-level summaries and candidate-level scores from real submission data | Mean, median, high, low, pass rate, score distribution chart, per-candidate table; sandbox excluded | Analytics page | todo |
-| C-3.8.3 | Retain completed attempts and results for later review by authorized users | Completed exams and attempts remain viewable read only; answer-level review for examiner and admin | Open an old exam's attempt | todo |
+| C-3.8.3 | Retain completed attempts and results for later review by authorized users | Completed exams and attempts remain viewable read only; answer-level review for examiner and admin | Open an old exam's attempt | done |
 
 ## 4 Secondary Features
 
@@ -102,10 +102,10 @@ Scoring notes from the brief: partial credit exists; non-functional placeholders
 | ID | Requirement | Acceptance criteria | Demo | Status |
 | --- | --- | --- | --- | --- |
 | T-6.1 | Server-side authorization; protect credentials, answer keys, personal data, records; no private data on public endpoints or reports | Guards in every service; candidate DTOs built from allowlists (no is_correct); verify page minimal; passwords hashed | Inspect network tab: no keys | todo |
-| T-6.2a | Timing independent of the device clock | Remaining time computed from server deadline and server-now offset | Change laptop clock, timer unchanged | todo |
-| T-6.2b | Prevent duplicate submissions | Submit idempotent (row lock + status check); double-click and retries return same result | Double submit | todo |
-| T-6.2c | Prevent inconsistent grading | Totals derived in one transaction; publish blocked until all graded; marks bounded | Try to publish with pending grading | todo |
-| T-6.2d | Preserve assigned questions and marking scheme for active attempts | Snapshot frozen at start (see C-3.3.3) | Same as C-3.3.3 | todo |
+| T-6.2a | Timing independent of the device clock | Remaining time computed from server deadline and server-now offset | Change laptop clock, timer unchanged | done |
+| T-6.2b | Prevent duplicate submissions | Submit idempotent (row lock + status check); double-click and retries return same result | Double submit | done |
+| T-6.2c | Prevent inconsistent grading | Totals derived in one transaction; publish blocked until all graded; marks bounded | Try to publish with pending grading | done |
+| T-6.2d | Preserve assigned questions and marking scheme for active attempts | Snapshot frozen at start (see C-3.3.3) | Same as C-3.3.3 | done |
 | T-6.3 | Validate on frontend and backend; handle invalid data, interrupted requests, refreshes, repeated actions; communicate failures and save status | Shared zod schemas; retries with backoff; out-of-order saves ignored via client seq; error toasts in plain words | Send bad payload via devtools, get 400 | todo |
 | T-6.4 | Appropriate DB design, separation of responsibilities, maintainable code | Normalized schema with FKs, unique constraints, enums; routes to services to DB layering | Walk through ARCHITECTURE | todo |
 | T-6.5 | No required feature depends on paid APIs, keys, proprietary data, special hardware or billing services | Only free tiers that need no card; no AI dependency | README dependencies list | todo |

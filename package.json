@@ -14,7 +14,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx --conditions=react-server --env-file=.env.local src/server/db/seed.ts",
-    "verify:engine": "tsx --conditions=react-server --env-file=.env.test scripts/verify-attempt-engine.ts"
+    "verify:engine": "tsx --conditions=react-server --env-file=.env.test scripts/verify-attempt-engine.ts",
+    "verify:grading": "tsx --conditions=react-server --env-file=.env.test scripts/verify-grading.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

@@ -1,6 +1,6 @@
 # Build plan
 
-**Status:** Phase 0 and Phase 1 done and verified | Phase 2 in progress (P2.1 grading) | Codex: CX-1 to CX-3 merged, CX-4 onward in progress
+**Status:** Phases 0 and 1 verified | P2.1 grading and P2.2 results done and verified (38 grading checks) | next P2.3 to P2.5 monitoring | Codex: CX-4 onward
 
 Rules: tick only when it works end to end on the live URL. "built" = code merged, not yet verified in a browser.
 Each task maps to SPEC IDs. Brief sections define WHAT we build; this order follows dependencies and marks at risk.
@@ -35,8 +35,8 @@ Each task maps to SPEC IDs. Brief sections define WHAT we build; this order foll
 
 ## Phase 2: finish core, then integrate secondary
 1. Grading and results (completes the end-to-end workflow)
-   - [ ] P2.1 Manual grading queue for written answers, marks validated 0..max, feedback, totals recalculated in a transaction, per-answer grading history (previous mark, new mark, grader, comment, time) recorded in audit_log and shown under each answer (C-3.7.2, C-3.7.3, T-6.2c)
-   - [ ] P2.2 Results review screen, publish gated on all graded, candidate result page, completed exams retained read-only; regrade after publication only with a reason (totals recalculated, old report code shows Replaced); candidates can view their own submitted answers right after submitting, without marks or keys until publication (C-3.8.1, C-3.8.3)
+   - [x] P2.1 Manual grading queue for written answers, marks validated 0..max, feedback, totals recalculated in a transaction, per-answer grading history (previous mark, new mark, grader, comment, time) recorded in audit_log and shown under each answer (C-3.7.2, C-3.7.3, T-6.2c)
+   - [x] P2.2 Results review screen, publish gated on all graded, candidate result page, completed exams retained read-only; regrade after publication only with a reason (totals recalculated, old report code shows Replaced); candidates can view their own submitted answers right after submitting, without marks or keys until publication (C-3.8.1, C-3.8.3)
 2. Core monitoring (moved up from Phase 3 to protect core marks)
    - [ ] P2.3 Live monitor, polled every 5 s: per candidate status NOT_STARTED / WRITING / DISCONNECTED (no save or heartbeat for 30 s) / SUBMITTED, answered count, time left, last seen, signal count; summary counts by status; lazy-finalize expired attempts before building the view (C-3.6.1)
    - [ ] P2.4 Announcements: examiner posts, candidates see within one poll (C-3.6.2)

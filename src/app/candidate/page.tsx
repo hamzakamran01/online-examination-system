@@ -65,10 +65,18 @@ function ExamCard({ e }: { e: Item }) {
           </p>
         )}
         {a.kind === "submitted" && (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CheckCircle2 className="size-4 text-success-text" aria-hidden />
-            {e.resultsPublishedAt ? "Results are published." : "Submitted. Results appear here once your examiner publishes them."}
-          </p>
+          <div className="space-y-3">
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CheckCircle2 className="size-4 text-success-text" aria-hidden />
+              {e.resultsPublishedAt ? "Your result is published." : "Submitted. Your score appears once your examiner publishes results."}
+            </p>
+            <Link
+              href={`/candidate/results/${a.attemptId}`}
+              className={cn(buttonVariants({ variant: e.resultsPublishedAt ? "default" : "outline" }), "w-full sm:w-auto")}
+            >
+              {e.resultsPublishedAt ? "View result" : "View my answers"}
+            </Link>
+          </div>
         )}
         {a.kind === "closed" && <p className="text-sm text-muted-foreground">The window closed before you started.</p>}
       </div>
