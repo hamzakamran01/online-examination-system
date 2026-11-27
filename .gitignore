@@ -23,5 +23,4 @@ npm-debug.log*
 pnpm-debug.log*
 
 # reference-only sister folders (source of copied UI, credited in README)
-/starter/
-/patternvault/
+/helpers and UI components/
