@@ -37,7 +37,7 @@ export function PreferencesPanel({ value, onChange }: { value: Preferences; onCh
       <fieldset disabled={busy} className="flex flex-col gap-5">
         <legend className="sr-only">Workspace preferences</legend>
         <label className="flex flex-col gap-1.5 text-sm font-medium">
-          
+          Text size
           <NativeSelect
             value={value.fontScale}
             onChange={(e) => change({ ...value, fontScale: Number(e.target.value) as Preferences["fontScale"] })}
@@ -50,7 +50,7 @@ export function PreferencesPanel({ value, onChange }: { value: Preferences; onCh
           </NativeSelect>
         </label>
         <label className="flex flex-col gap-1.5 text-sm font-medium">
-          
+          Theme
           <NativeSelect
             value={value.theme}
             onChange={(e) => change({ ...value, theme: e.target.value as Preferences["theme"] })}
@@ -65,7 +65,7 @@ export function PreferencesPanel({ value, onChange }: { value: Preferences; onCh
           </NativeSelect>
         </label>
         <label className="flex flex-col gap-1.5 text-sm font-medium">
-          
+          Question layout
           <NativeSelect
             value={value.layout}
             onChange={(e) => change({ ...value, layout: e.target.value as Preferences["layout"] })}
@@ -75,7 +75,7 @@ export function PreferencesPanel({ value, onChange }: { value: Preferences; onCh
           </NativeSelect>
         </label>
         <label className="flex flex-col gap-1.5 text-sm font-medium">
-          
+          Question palette position
           <NativeSelect
             value={value.paletteSide}
             onChange={(e) => change({ ...value, paletteSide: e.target.value as Preferences["paletteSide"] })}

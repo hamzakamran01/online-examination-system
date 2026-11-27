@@ -117,7 +117,8 @@ export function ExamTable({ rows, initialStage }: { rows: Row[]; initialStage: s
                   </Link>
                 </td>
                 <td className="px-3 py-3">
-                  <span className={cn("inline-flex rounded-full px-2 py-0.5 text-xs font-medium", BADGE[r.stage])}>
+                  <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-current/15 ring-inset", BADGE[r.stage])}>
+                    <span className={cn("size-1.5 rounded-full bg-current", r.stage === "live" && "animate-live")} aria-hidden />
                     {r.stage === "grading" && r.toGradeCount ? `${r.toGradeCount} to grade` : LABEL[r.stage]}
                   </span>
                 </td>

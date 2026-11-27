@@ -58,3 +58,7 @@ Append new entries at the bottom. Format: decision, why, alternative rejected.
 - Only before the deadline: once time has run out the attempt is being finalized, so a grant would reopen a closed attempt.
 - The candidate learns the amount (toast, timer moves on the next heartbeat) but never the reason, which can contain personal details. Admins can read the monitor but not act (authz matrix: read all).
 - Rejected: pausing the timer while offline (pull the cable to gain time), automatic credit for gaps (same abuse), exam-wide announcement per extension (leaks one candidate's situation to everyone).
+
+## D13 Compact dashboard metrics (decided)
+- Role dashboards use shorter KPI cards, smaller trend graphics, and tighter section spacing so operational content appears sooner without removing the candidate's prominent next-exam focus.
+- Rejected: a full dashboard redesign or shrinking detailed exam and result screens, which would weaken established role-specific hierarchy.

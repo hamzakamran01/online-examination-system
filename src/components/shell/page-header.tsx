@@ -36,7 +36,7 @@ export function PageHeader({
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="flex min-w-0 flex-col gap-2">
           {eyebrow && <div className="flex flex-wrap items-center gap-2">{eyebrow}</div>}
-          <h1 className="font-display text-[1.65rem] leading-tight font-semibold sm:text-[1.9rem]">{title}</h1>
+          <h1 className="font-display text-[1.65rem] leading-tight font-semibold tracking-tight sm:text-[1.9rem]">{title}</h1>
           {description && <div className="max-w-[68ch] text-[0.94rem] leading-relaxed text-muted-foreground">{description}</div>}
         </div>
         {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
@@ -45,9 +45,9 @@ export function PageHeader({
   )
 }
 
-/** Flat surface: hairline border, no shadow. Never nest panels. */
+/** Raised surface: hairline border plus a contact shadow. Never nest panels. */
 export function Panel({ className, ...props }: React.ComponentProps<"section">) {
-  return <section className={cn("rounded-xl border bg-surface", className)} {...props} />
+  return <section className={cn("rounded-xl border bg-surface shadow-panel", className)} {...props} />
 }
 
 export function PanelHeader({
@@ -62,7 +62,7 @@ export function PanelHeader({
   className?: string
 }) {
   return (
-    <div className={cn("flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between", className)}>
+    <div className={cn("flex flex-col gap-3 border-b bg-linear-to-b from-surface-sunken/60 to-surface px-5 py-4 sm:flex-row sm:items-center sm:justify-between", className)}>
       <div className="min-w-0">
         <h2 className="text-[0.95rem] font-semibold">{title}</h2>
         {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
@@ -74,7 +74,7 @@ export function PanelHeader({
 
 /** A joined row of metrics separated by hairlines: one object, not a wall of cards. */
 export function MetricStrip({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <div className={cn("grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border lg:grid-cols-4", className)}>{children}</div>
+  return <div className={cn("grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border shadow-panel lg:grid-cols-4", className)}>{children}</div>
 }
 
 const TONE = {
@@ -100,7 +100,7 @@ export function Stat({
 }) {
   return (
     <div className={cn("flex flex-col gap-1.5 bg-surface px-5 py-4", className)}>
-      <p className="text-[0.8rem] text-muted-foreground">{label}</p>
+      <p className="eyebrow text-muted-foreground">{label}</p>
       <p className={cn("font-display text-[1.7rem] leading-none font-semibold tabular-nums", tone && TONE[tone])}>{value}</p>
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>

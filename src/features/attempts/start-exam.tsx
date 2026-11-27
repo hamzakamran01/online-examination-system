@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Loader2, PlayCircle } from "lucide-react"
+import { CheckCircle2, Hourglass, Loader2, Lock, PlayCircle } from "lucide-react"
 import { toast } from "sonner"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -34,9 +34,24 @@ export function StartExam({
         Resume exam
       </Link>
     )
-  if (access === "upcoming") return <p className="text-sm text-muted-foreground">The start button appears here when the window opens.</p>
-  if (access === "submitted") return <p className="text-sm text-muted-foreground">You have already submitted this exam.</p>
-  if (access === "closed") return <p className="text-sm text-muted-foreground">This exam is closed.</p>
+  if (access === "upcoming" || access === "submitted" || access === "closed") {
+    const c = {
+      upcoming: { icon: Hourglass, title: "Not open yet", body: "The start button appears here when the window opens.", tone: "bg-time-soft text-time-text" },
+      submitted: { icon: CheckCircle2, title: "Submitted", body: "You have already submitted this exam.", tone: "bg-success-soft text-success-text" },
+      closed: { icon: Lock, title: "Closed", body: "This exam window has ended.", tone: "bg-muted text-muted-foreground" },
+    }[access]
+    return (
+      <div role="status" className="flex gap-3 rounded-xl border border-dashed bg-surface-sunken/60 p-4">
+        <span className={`grid size-8 shrink-0 place-items-center rounded-lg ${c.tone}`}>
+          <c.icon className="size-4" aria-hidden />
+        </span>
+        <p className="text-sm">
+          <span className="block font-medium">{c.title}</span>
+          <span className="text-muted-foreground">{c.body}</span>
+        </p>
+      </div>
+    )
+  }
 
   const start = async () => {
     setStarting(true)

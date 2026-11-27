@@ -125,7 +125,7 @@ Scoring notes from the brief: partial credit exists; non-functional placeholders
 | --- | --- | --- | --- | --- |
 | UX-8.1 | Consistent, accessible interface; clear navigation and hierarchy | Role-specific nav; WCAG AA contrast; labels, focus rings, aria-live for timer and save status | Keyboard-only run | todo |
 | UX-8.2 | Responsive layouts and intuitive workflows; features discoverable | Works at 375px; empty states guide next action; exam detail tabs group features | Phone-width view | todo |
-| UX-8.3 | Not generic or template-like; visuals support usability | Exam-specific design language; charts only where they inform | Overall walkthrough | todo |
+| UX-8.3 | Not generic or template-like; visuals support usability | Exam-specific design language; charts only where they inform | Overall walkthrough | doing |
 
 ## Open questions
 1. Multi-select scheme: we default to per-question choice of all-or-nothing or partial (correct/n minus wrong/n, floor 0). OK?

@@ -2,6 +2,7 @@ import Link from "next/link"
 import { ArrowLeft, FileQuestion, ShieldAlert, ShieldCheck } from "lucide-react"
 import { verifyReport } from "@/features/reports/verify"
 import { Logo } from "@/components/shell/logo"
+import { ContourLines, GuillocheBand, Microprint, Seal } from "@/components/shell/decor"
 import { fmtDate, fmtMarks } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
@@ -28,11 +29,18 @@ export default async function Page({ params }: PageProps<"/verify/[code]">) {
   const Icon = copy.icon
 
   return (
-    <main id="main" className="flex min-h-dvh flex-col items-center px-4 py-10 sm:py-16">
+    <main id="main" className="relative isolate flex min-h-dvh flex-col items-center overflow-hidden px-4 py-10 sm:py-16">
+      <div aria-hidden className="bg-glow pointer-events-none absolute inset-0 -z-10" />
+      <div aria-hidden className="bg-grid pointer-events-none absolute inset-0 -z-10" />
       <Logo className="mb-10" />
-      <article className="w-full max-w-md overflow-hidden rounded-xl border bg-surface" aria-labelledby="verify-title">
+      {/* Certificate: guilloche edge, rosette watermark and microprint, as on a printed transcript. */}
+      <article className="relative isolate w-full max-w-md overflow-hidden rounded-2xl border bg-surface shadow-raised" aria-labelledby="verify-title">
+        <GuillocheBand className={cn("h-3.5 opacity-70", copy.tone)} />
+        <ContourLines lines={12} className={cn("absolute inset-x-0 top-6 -z-10 h-40 w-full opacity-[0.1]", copy.tone)} />
+        {valid && <Seal className="absolute top-8 right-5 size-20 rotate-[-14deg] text-success-text/25" />}
+        <Microprint className="border-b px-6 py-1 text-subtle-foreground/60" text={valid ? "AUTHENTIC EXAMVAULT RESULT REPORT" : "EXAMVAULT REPORT VERIFICATION"} />
         <div className="flex flex-col items-center px-6 pt-8 pb-6 text-center">
-          <span className={cn("grid size-14 place-items-center rounded-full", copy.ring)}>
+          <span className={cn("grid size-14 place-items-center rounded-full ring-8 ring-surface shadow-panel", copy.ring)}>
             <Icon className={cn("size-7", copy.tone)} aria-hidden />
           </span>
           <h1 id="verify-title" className="font-display mt-4 text-2xl font-semibold">
@@ -57,7 +65,7 @@ export default async function Page({ params }: PageProps<"/verify/[code]">) {
           </dl>
         )}
 
-        <div className="border-t bg-surface-sunken px-6 py-4">
+        <div className="relative border-t bg-surface-sunken px-6 py-4">
           <p className="text-xs text-muted-foreground">
             Code <span className="font-mono text-foreground">{code}</span>
           </p>

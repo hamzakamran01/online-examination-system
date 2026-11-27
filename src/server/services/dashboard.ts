@@ -98,6 +98,7 @@ export async function getExaminerDashboard(actor: SessionUser) {
       submitted14: activity.reduce((n, d) => n + d.count, 0),
       avgScore: finished.length ? Math.round(finished.reduce((n, e) => n + (e.avgPercent ?? 0), 0) / finished.length) : null,
     },
+    stages: (["draft", "scheduled", "live", "grading", "released"] as const).map((k) => ({ key: k, n: exams_.filter((e) => e.stage === k).length })),
     live,
     upcoming,
     recent,

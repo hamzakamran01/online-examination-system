@@ -3,7 +3,10 @@ import { redirect } from "next/navigation"
 import { CheckCircle2, CloudOff, ShieldCheck, Timer } from "lucide-react"
 import { getCurrentUser, homeFor } from "@/server/auth/guards"
 import { LoginForm } from "./login-form"
+import Link from "next/link"
 import { Logo, LogoMark } from "@/components/shell/logo"
+import { BubbleField, ContourLines, GuillocheBand, Microprint } from "@/components/shell/decor"
+import { SystemStatus } from "@/components/shell/system-status"
 
 export const metadata: Metadata = { title: "Sign in" }
 
@@ -21,7 +24,15 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
   return (
     <main id="main" className="grid min-h-dvh lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-      <section className="surface-ink bg-ruled relative hidden overflow-hidden lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16" aria-label="About ExamVault">
+      <section className="surface-ink relative isolate hidden overflow-hidden lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16" aria-label="About ExamVault">
+        {/* Background layers: lamp light, ruled exam paper, drafting grid, rosette watermark, seal. */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(80%_60%_at_100%_0%,oklch(0.42_0.08_180/0.55),transparent_60%),radial-gradient(60%_50%_at_0%_100%,oklch(0.3_0.07_230/0.6),transparent_70%)]" />
+        <div aria-hidden className="bg-ruled pointer-events-none absolute inset-0 -z-10" />
+        <div aria-hidden className="bg-grid-white pointer-events-none absolute inset-0 -z-10 opacity-60" />
+        <ContourLines lines={18} seed={5} className="absolute inset-x-0 bottom-0 -z-10 h-[55%] w-full text-white/[0.09]" />
+        <BubbleField rows={9} groups={2} seed={4} className="absolute top-28 right-12 -z-10 text-white/[0.14] xl:right-16" markedClassName="text-[oklch(0.82_0.1_180)]" />
+        <Microprint className="absolute inset-x-0 top-0 px-12 pt-2 text-white/[0.13] xl:px-16" />
+        <GuillocheBand className="absolute inset-x-0 bottom-0 text-white/[0.12]" />
         <div className="flex items-center gap-2.5">
           <LogoMark className="bg-white text-[oklch(0.3_0.06_192)]" />
           <span className="font-display text-lg font-semibold">ExamVault</span>
@@ -34,7 +45,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <ul className="mt-10 flex flex-col gap-6">
             {guarantees.map(({ icon: Icon, title, body }) => (
               <li key={title} className="flex gap-4">
-                <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border border-white/15 bg-white/5">
+                <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border border-white/15 bg-white/[0.07] shadow-[inset_0_1px_0_rgb(255_255_255/0.12)] backdrop-blur-sm">
                   <Icon className="size-[1.1rem]" aria-hidden />
                 </span>
                 <div>
@@ -47,7 +58,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         </div>
 
         {/* A real fragment of the exam bar: the save status and server clock candidates will see. */}
-        <div className="flex w-fit items-center gap-3 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm" aria-hidden>
+        <div className="flex w-fit items-center gap-3 rounded-lg border border-white/15 bg-white/[0.07] px-3 py-2 text-sm shadow-[inset_0_1px_0_rgb(255_255_255/0.1),0_12px_32px_-12px_rgb(0_0_0/0.6)] backdrop-blur-md" aria-hidden>
           <span className="inline-flex items-center gap-1.5 text-[oklch(0.85_0.12_150)]">
             <CheckCircle2 className="size-4" />
             All answers saved
@@ -58,13 +69,25 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         </div>
       </section>
 
-      <section className="flex items-center justify-center px-4 py-12 sm:px-8">
-        <div className="w-full max-w-sm">
+      <section className="relative isolate flex flex-col items-center justify-center overflow-hidden px-4 py-12 sm:px-8">
+        <div aria-hidden className="bg-glow pointer-events-none absolute inset-0 -z-10" />
+        <div aria-hidden className="bg-grid pointer-events-none absolute inset-0 -z-10" />
+        <div className="w-full max-w-[25rem]">
           <Logo className="mb-10 lg:hidden" />
-          <h2 className="font-display text-[1.75rem] font-semibold">Sign in</h2>
-          <p className="mt-1.5 mb-8 text-sm text-muted-foreground">Use the account your institution created for you.</p>
-          <LoginForm next={safeNext} />
-          <p className="mt-10 text-xs text-muted-foreground">Technoverse 5.0 Web-e-Thon · Secure Examination Management System</p>
+          <div className="rounded-2xl border bg-surface/90 p-6 shadow-raised backdrop-blur-sm sm:p-8">
+            <p className="eyebrow text-brand-text">Secure sign-in</p>
+            <h2 className="font-display mt-1.5 text-[1.75rem] font-semibold tracking-tight">Welcome to ExamVault</h2>
+            <p className="mt-1.5 mb-7 text-sm text-muted-foreground">Use the account your institution created for you.</p>
+            <LoginForm next={safeNext} />
+          </div>
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-1">
+            <SystemStatus className="-ml-2" />
+            <Link href="/verify" className="inline-flex items-center gap-1.5 rounded text-xs font-medium text-brand-text hover:underline">
+              <ShieldCheck className="size-3.5" aria-hidden />
+              Verify a result report
+            </Link>
+          </div>
+          <p className="mt-6 px-1 text-xs text-subtle-foreground">Technoverse 5.0 Web-e-Thon · Secure Examination Management System</p>
         </div>
       </section>
     </main>

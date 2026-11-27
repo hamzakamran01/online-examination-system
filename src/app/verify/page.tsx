@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
 import { Logo } from "@/components/shell/logo"
+import { ContourLines, GuillocheBand } from "@/components/shell/decor"
 import { Panel } from "@/components/shell/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,11 +14,16 @@ export default async function Page({ searchParams }: PageProps<"/verify">) {
   if (/^[A-Za-z0-9_-]{22}$/.test(value)) redirect("/verify/" + value)
   const invalid = code !== undefined
   return (
-    <main id="main" className="flex min-h-dvh flex-col items-center px-4 py-10 sm:py-16">
+    <main id="main" className="relative isolate flex min-h-dvh flex-col items-center overflow-hidden px-4 py-10 sm:py-16">
+      <div aria-hidden className="bg-glow pointer-events-none absolute inset-0 -z-10" />
+      <div aria-hidden className="bg-grid pointer-events-none absolute inset-0 -z-10" />
       <Logo className="mb-10" />
-      <Panel className="w-full max-w-md space-y-5 p-6 sm:p-8">
+      <Panel className="relative isolate w-full max-w-md space-y-5 overflow-hidden rounded-2xl p-6 pt-8 shadow-raised sm:p-8 sm:pt-10">
+        <GuillocheBand className="absolute inset-x-0 top-0 h-3.5 text-brand-text/60" />
+        <ContourLines lines={10} className="absolute inset-x-0 bottom-0 -z-10 h-28 w-full text-brand-text/[0.08]" />
         <div>
-          <h1 className="font-display text-2xl font-semibold">Verify a result report</h1>
+          <p className="eyebrow text-brand-text">Public verification</p>
+          <h1 className="font-display mt-1.5 text-2xl font-semibold tracking-tight">Verify a result report</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">Scan the QR code on a report, or type the code printed beneath it.</p>
         </div>
         <form className="space-y-4" action="/verify">

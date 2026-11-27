@@ -85,15 +85,15 @@
   --chart-5: oklch(0.6 0.12 150);
   --chart-grid: oklch(0.92 0.006 var(--hue-ink));
 
-  /* Sidebar: a light rail, separated by a hairline */
-  --sidebar: oklch(0.985 0.003 var(--hue-ink));
-  --sidebar-foreground: var(--foreground);
-  --sidebar-primary: var(--primary);
+  /* Sidebar: solid ink-teal rail for stronger separation from the work area */
+  --sidebar: oklch(0.255 0.045 215);
+  --sidebar-foreground: oklch(0.97 0.008 210);
+  --sidebar-primary: oklch(0.79 0.12 190);
   --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: oklch(0.94 0.008 var(--hue-ink));
-  --sidebar-accent-foreground: var(--foreground);
-  --sidebar-border: var(--border);
-  --sidebar-ring: var(--ring);
+  --sidebar-accent: oklch(1 0 0 / 0.11);
+  --sidebar-accent-foreground: var(--sidebar-foreground);
+  --sidebar-border: oklch(1 0 0 / 0.12);
+  --sidebar-ring: oklch(0.79 0.12 190 / 0.65);
 
   /* Shape and depth */
   --radius: 0.5rem;
@@ -102,8 +102,22 @@
   --shadow-sm: 0 1px 2px hsl(var(--shadow-color) / 0.06);
   --shadow-md: 0 4px 12px -2px hsl(var(--shadow-color) / 0.12), 0 1px 3px hsl(var(--shadow-color) / 0.06);
   --shadow-lg: 0 16px 40px -8px hsl(var(--shadow-color) / 0.22), 0 2px 6px hsl(var(--shadow-color) / 0.08);
-  /* Panels are flat: no shadow under the border. */
-  --shadow-panel: none;
+  /*
+   * Elevation model (sunken < canvas < raised < overlay). Panels are "raised":
+   * a hairline border plus a 1px contact shadow and a soft ambient falloff, so
+   * they separate from the canvas without looking like floating cards.
+   */
+  --shadow-panel: 0 1px 0 hsl(var(--shadow-color) / 0.03), 0 1px 2px -1px hsl(var(--shadow-color) / 0.08), 0 6px 16px -10px hsl(var(--shadow-color) / 0.12);
+  --shadow-raised: 0 1px 2px hsl(var(--shadow-color) / 0.06), 0 10px 28px -14px hsl(var(--shadow-color) / 0.28);
+  /* Inner top highlight that makes primary controls read as physical. */
+  --edge-highlight: inset 0 1px 0 oklch(1 0 0 / 0.18);
+
+  /* Chrome: the inverted-L of sidebar and top bar that frames the work sheet. */
+  --chrome: oklch(0.948 0.008 var(--hue-ink));
+  --chrome-border: oklch(0.89 0.01 var(--hue-ink));
+  /* Decorative line colour for grids and guilloche. Never carries meaning. */
+  --decor-line: color-mix(in oklch, var(--foreground) 6.5%, transparent);
+  --decor-glow: oklch(0.62 0.1 var(--hue-brand) / 0.10);
 
   /* Motion: decelerating, short. Exit faster than entrance. */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -160,13 +174,21 @@
   --chart-5: oklch(0.74 0.12 150);
   --chart-grid: oklch(1 0 0 / 0.07);
 
-  --sidebar: oklch(0.17 0.013 var(--hue-ink));
-  --sidebar-accent: oklch(0.24 0.016 var(--hue-ink));
-  --sidebar-border: var(--border);
+  --sidebar: oklch(0.17 0.025 215);
+  --sidebar-accent: oklch(1 0 0 / 0.09);
+  --sidebar-border: oklch(1 0 0 / 0.1);
 
   --shadow-color: 235 40% 2%;
   --shadow-md: 0 4px 12px -2px hsl(var(--shadow-color) / 0.5);
   --shadow-lg: 0 16px 40px -8px hsl(var(--shadow-color) / 0.7);
+  --shadow-panel: inset 0 1px 0 oklch(1 0 0 / 0.035), 0 1px 2px hsl(var(--shadow-color) / 0.4);
+  --shadow-raised: inset 0 1px 0 oklch(1 0 0 / 0.05), 0 12px 32px -12px hsl(var(--shadow-color) / 0.8);
+  --edge-highlight: inset 0 1px 0 oklch(1 0 0 / 0.22);
+
+  --chrome: oklch(0.13 0.011 var(--hue-ink));
+  --chrome-border: oklch(1 0 0 / 0.07);
+  --decor-line: oklch(1 0 0 / 0.045);
+  --decor-glow: oklch(0.74 0.1 var(--hue-brand) / 0.09);
 }
 
 /* Dark ink scope for the sign-in brand panel only. */
@@ -186,10 +208,21 @@
   --muted-foreground: oklch(0.86 0.035 var(--hue-brand));
   --border: oklch(1 0 0 / 0.16);
   background-color: oklch(0.36 0.07 var(--hue-brand));
+  /* Lit from the top-right like a printed security sheet under a lamp; deepens toward the metrics row. */
+  background-image:
+    radial-gradient(120% 140% at 100% 0%, oklch(0.47 0.085 calc(var(--hue-brand) - 12) / 0.9) 0%, transparent 55%),
+    radial-gradient(90% 120% at 0% 100%, oklch(0.27 0.06 calc(var(--hue-brand) + 18)) 0%, transparent 60%),
+    linear-gradient(180deg, oklch(0.37 0.07 var(--hue-brand)), oklch(0.32 0.065 var(--hue-brand)));
+  box-shadow: var(--shadow-raised), inset 0 1px 0 oklch(1 0 0 / 0.12);
   color: var(--foreground);
   color-scheme: dark;
 }
-.dark .surface-brand { background-color: oklch(0.3 0.06 var(--hue-brand)); }
+.dark .surface-brand {
+  background-color: oklch(0.3 0.06 var(--hue-brand));
+  background-image:
+    radial-gradient(120% 140% at 100% 0%, oklch(0.4 0.075 calc(var(--hue-brand) - 12) / 0.85) 0%, transparent 55%),
+    linear-gradient(180deg, oklch(0.3 0.06 var(--hue-brand)), oklch(0.25 0.05 var(--hue-brand)));
+}
 
 @theme inline {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
@@ -223,6 +256,10 @@
   --color-surface: var(--surface);
   --color-surface-sunken: var(--surface-sunken);
   --shadow-panel: var(--shadow-panel);
+  --shadow-raised: var(--shadow-raised);
+  --shadow-edge: var(--edge-highlight);
+  --color-chrome: var(--chrome);
+  --color-chrome-border: var(--chrome-border);
 
   --color-brand: var(--brand);
   --color-brand-soft: var(--brand-soft);
@@ -297,6 +334,22 @@
   button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: pointer; }
   input, textarea { caret-color: var(--primary); }
   .tabular, [data-numeric] { font-variant-numeric: tabular-nums; }
+
+  /*
+   * Ledger tables, applied at the base layer so every table in the product
+   * (primitive or hand-written) shares one header band. Utilities still win.
+   */
+  thead tr { background-color: color-mix(in oklch, var(--surface-sunken) 75%, transparent); }
+  thead th {
+    font-size: 0.6875rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    font-weight: 600;
+  }
+  tbody tr { transition: background-color var(--dur-fast) var(--ease-out); }
+  tbody tr:hover { background-color: var(--brand-softer); }
+  td { font-variant-numeric: tabular-nums; }
 }
 
 @layer utilities {
@@ -315,6 +368,56 @@
     mask-image: radial-gradient(ellipse at top, black 0%, transparent 70%);
   }
   .scrollbar-none::-webkit-scrollbar { display: none; }
+  /*
+   * Background layers. All decorative, aria-hidden, pointer-events none, and
+   * masked so they fade before reaching content. Line colour never carries meaning.
+   */
+  /* Blueprint grid: the drafting-table surface behind the work sheet. */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, var(--decor-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--decor-line) 1px, transparent 1px);
+    background-size: 32px 32px;
+    background-position: -1px -1px;
+    mask-image: radial-gradient(ellipse 70% 100% at 50% 0%, black 0%, black 25%, transparent 75%);
+  }
+  .bg-grid-white {
+    background-image:
+      linear-gradient(to right, oklch(1 0 0 / 0.07) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(1 0 0 / 0.07) 1px, transparent 1px);
+    background-size: 28px 28px;
+    mask-image: linear-gradient(to left, black 0%, black 30%, transparent 80%);
+  }
+  /* Soft brand light falling on the top of the sheet. */
+  .bg-glow {
+    background:
+      radial-gradient(60% 55% at 50% -10%, var(--decor-glow), transparent 70%),
+      radial-gradient(35% 40% at 92% 0%, oklch(0.75 0.12 70 / 0.05), transparent 70%);
+  }
+  /* Paper grain. Fixed tiny SVG, about 0.6 KB. */
+  .bg-grain {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.035;
+    mix-blend-mode: multiply;
+  }
+  .dark .bg-grain { opacity: 0.06; mix-blend-mode: screen; }
+  /* Security microprint, as on certificates and banknotes. */
+  .microprint {
+    font-family: var(--font-mono);
+    font-size: 0.5625rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    user-select: none;
+  }
+  /* Small uppercase label used for section eyebrows and table headers. */
+  .eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
   /* Only used behind the sign-in brand panel: a real ruled-paper texture for the "exam sheet" metaphor. */
   .bg-ruled {
     background-image: repeating-linear-gradient(to bottom, transparent 0 31px, oklch(1 0 0 / 0.06) 31px 32px);

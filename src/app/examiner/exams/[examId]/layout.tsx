@@ -44,7 +44,7 @@ export default async function ExamLayout({ children, params }: LayoutProps<"/exa
         actions={<ExamLifecycleActions examId={exam.id} status={status} />}
         className="mb-6"
       />
-      <ExamTabs examId={exam.id} />
+      <ExamTabs examId={exam.id} live={status === "ongoing"} />
       <div className="pt-6">{children}</div>
     </>
   )

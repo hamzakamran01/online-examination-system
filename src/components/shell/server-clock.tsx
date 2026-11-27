@@ -47,6 +47,8 @@ export function ServerClock({ className }: { className?: string }) {
 
   React.useEffect(() => {
     if (!point) return
+    // Paint the first reading at once instead of a blank "--:--:--" for a full second.
+    queueMicrotask(() => setNow(point.server + (performance.now() - point.mono)))
     const t = setInterval(() => setNow(point.server + (performance.now() - point.mono)), 1000)
     return () => clearInterval(t)
   }, [point])

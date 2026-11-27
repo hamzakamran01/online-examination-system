@@ -77,7 +77,7 @@ export function LoginForm({ next }: { next?: string }) {
         </Button>
       </form>
 
-      <div className="rounded-xl border bg-surface">
+      <div className="overflow-hidden rounded-xl border bg-surface-sunken/60">
         <p className="border-b px-4 py-2.5 text-xs font-medium text-muted-foreground">Demo accounts with fictional data. Pick a role to fill the form.</p>
         <ul className="divide-y">
           {DEMO.map((d) => (
@@ -89,13 +89,13 @@ export function LoginForm({ next }: { next?: string }) {
                   form.setValue("password", d.password)
                   form.clearErrors()
                 }}
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-muted/60 focus-visible:bg-muted/60"
+                className="group flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-surface focus-visible:bg-surface"
               >
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-medium">{d.role}</span>
                   <span className="block truncate text-xs text-muted-foreground">{d.blurb}</span>
                 </span>
-                <span className="text-xs font-medium text-brand-text">Use</span>
+                <span className="rounded-md border bg-surface px-2 py-0.5 text-xs font-medium text-brand-text shadow-xs transition-colors group-hover:border-brand/40">Use</span>
               </button>
             </li>
           ))}

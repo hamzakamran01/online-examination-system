@@ -85,7 +85,15 @@ function useCountUp(target: number, ms = 900) {
       if (p < 1) raf = requestAnimationFrame(step)
     }
     raf = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(raf)
+    // rAF pauses in hidden or throttled tabs; never leave the real score showing as 0.
+    const settle = setTimeout(() => {
+      cancelAnimationFrame(raf)
+      setV(target)
+    }, ms + 150)
+    return () => {
+      cancelAnimationFrame(raf)
+      clearTimeout(settle)
+    }
   }, [target, ms])
   return v
 }
