@@ -25,12 +25,64 @@
   }
 }
 
+@keyframes marketing-grid-drift {
+  to {
+    background-position: 46px 46px;
+  }
+}
+
+@keyframes marketing-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes marketing-contour-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(-7px, 5px, 0);
+  }
+}
+
+@keyframes marketing-progress-sheen {
+  to {
+    transform: translateX(250%);
+  }
+}
+
 .animate-soft-rise {
   animation: marketing-rise 650ms var(--ease-out) both;
 }
 
 .animate-preview-change {
   animation: marketing-preview-change 220ms var(--ease-out) both;
+}
+
+.marketing-page [data-scroll-reveal] {
+  transition:
+    opacity 700ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 760ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.marketing-page [data-scroll-reveal][data-reveal-pending="true"] {
+  opacity: 0;
+  transform: translate3d(0, 1.4rem, 0) scale(0.99);
+}
+
+.marketing-page [data-scroll-reveal][data-reveal-pending="true"]:focus-within {
+  opacity: 1;
+  transform: none;
+}
+
+.marketing-page [data-scroll-reveal][data-reveal-order="2"] {
+  transition-delay: 90ms;
+}
+
+.marketing-page [data-scroll-reveal][data-reveal-order="3"] {
+  transition-delay: 180ms;
 }
 
 .marketing-page {
@@ -58,6 +110,47 @@
   background-size: 46px 46px;
   mask-image: radial-gradient(ellipse 90% 75% at 82% 28%, black 0%, transparent 82%);
   pointer-events: none;
+  animation: marketing-grid-drift 70s linear infinite;
+}
+
+.marketing-hero-dots {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background-image: radial-gradient(color-mix(in oklch, var(--sidebar-foreground) 24%, transparent) 1px, transparent 1.15px);
+  background-position: 8px 8px;
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse 42% 70% at 92% 20%, black 0%, transparent 100%);
+  pointer-events: none;
+}
+
+.marketing-hero-orbit {
+  position: absolute;
+  z-index: -1;
+  top: 8%;
+  right: -9%;
+  width: min(47vw, 42rem);
+  aspect-ratio: 1;
+  border: 1px solid oklch(0.82 0.1 180 / 0.11);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: marketing-orbit 110s linear infinite;
+}
+
+.marketing-hero-orbit::before,
+.marketing-hero-orbit::after {
+  position: absolute;
+  border: 1px solid oklch(0.82 0.1 180 / 0.09);
+  border-radius: 50%;
+  content: "";
+}
+
+.marketing-hero-orbit::before {
+  inset: 9%;
+}
+
+.marketing-hero-orbit::after {
+  inset: 19%;
 }
 
 .marketing-nav-wrap {
@@ -249,6 +342,51 @@
   border-top: 1px solid var(--border);
 }
 
+.preview-progress-track,
+.preview-timer-track {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+}
+
+.preview-progress-track {
+  height: 3px;
+  margin-top: 0.35rem;
+}
+
+.preview-progress-fill {
+  position: relative;
+  display: block;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--primary);
+  transition: width 900ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.preview-progress-fill::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.8), transparent);
+  content: "";
+  animation: marketing-progress-sheen 3.8s ease-in-out infinite;
+}
+
+.preview-timer-track {
+  height: 3px;
+  margin-top: 0.85rem;
+}
+
+.preview-timer-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--time);
+  transition: width 1s linear;
+}
+
 .preview-note {
   display: flex;
   align-items: center;
@@ -300,9 +438,29 @@
 }
 
 .marketing-section {
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
   max-width: 1320px;
   margin-inline: auto;
   padding: clamp(4rem, 8vw, 7rem) 1rem;
+}
+
+.marketing-section::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background-image: radial-gradient(color-mix(in oklch, var(--foreground) 12%, transparent) 0.9px, transparent 1.1px);
+  background-position: 8px 8px;
+  background-size: 22px 22px;
+  content: "";
+  mask-image: radial-gradient(ellipse 38% 76% at 98% 8%, black 0%, transparent 100%);
+  pointer-events: none;
+}
+
+.marketing-layer {
+  position: relative;
+  z-index: 1;
 }
 
 .marketing-section-heading {
@@ -363,6 +521,22 @@
   align-items: center;
   gap: clamp(2.5rem, 6vw, 6rem);
   background: var(--surface-sunken);
+}
+
+.marketing-workflow-contours,
+.marketing-resilience-contours {
+  z-index: 0;
+  pointer-events: none;
+  animation: marketing-contour-drift 24s ease-in-out infinite;
+}
+
+.marketing-workflow-contours {
+  opacity: 0.62;
+}
+
+.marketing-resilience-contours {
+  opacity: 0.52;
+  animation-duration: 29s;
 }
 
 .marketing-resilience-copy,
@@ -546,6 +720,11 @@
   align-items: start;
   gap: clamp(2rem, 5vw, 5rem);
   border-top: 1px solid var(--border);
+}
+
+.marketing-audience-rule {
+  z-index: 0;
+  opacity: 0.28;
 }
 
 .marketing-audience-copy {
@@ -843,6 +1022,28 @@
   .preview-mode-button,
   .recovery-step,
   .marketing-footer-link {
+    transition: none;
+  }
+
+  .marketing-hero-grid,
+  .marketing-hero-orbit,
+  .marketing-workflow-contours,
+  .marketing-resilience-contours,
+  .preview-progress-fill::after {
+    animation: none;
+  }
+
+  .preview-timer-track > span {
+    transition: none;
+  }
+
+  .marketing-page [data-scroll-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
+  .preview-progress-fill {
     transition: none;
   }
 }

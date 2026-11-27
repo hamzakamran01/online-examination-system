@@ -15,10 +15,12 @@ import {
   Wifi,
 } from "lucide-react"
 import { Logo, LogoMark } from "@/components/shell/logo"
+import { ContourLines, GuillocheBand } from "@/components/shell/decor"
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { ProductPreview } from "./product-preview"
 import { RecoveryDemo } from "./recovery-demo"
+import { MarketingScrollReveal } from "./scroll-reveal"
 
 const principles = [
   { icon: Clock3, title: "Server-authoritative timing", detail: "The exam clock is not the device clock." },
@@ -71,8 +73,11 @@ const workflow = [
 export function LandingPage() {
   return (
     <main id="main" className="marketing-page">
+      <MarketingScrollReveal />
       <section className="marketing-hero">
         <div className="marketing-hero-grid" aria-hidden />
+        <div className="marketing-hero-dots" aria-hidden />
+        <div className="marketing-hero-orbit" aria-hidden />
         <header className="marketing-nav-wrap">
           <nav className="marketing-nav" aria-label="Main navigation">
             <Link href="/" aria-label="ExamVault home" className="rounded-md">
@@ -130,8 +135,8 @@ export function LandingPage() {
         </div>
 
         <div className="marketing-principles" aria-label="Product principles">
-          {principles.map(({ icon: Icon, title, detail }) => (
-            <div key={title} className="marketing-principle">
+          {principles.map(({ icon: Icon, title, detail }, index) => (
+            <div key={title} className="marketing-principle" data-scroll-reveal data-reveal-order={index + 1}>
               <span className="marketing-principle-icon"><Icon className="size-4" aria-hidden /></span>
               <span className="min-w-0">
                 <span className="block text-xs font-semibold text-sidebar-foreground">{title}</span>
@@ -143,16 +148,17 @@ export function LandingPage() {
       </section>
 
       <section id="workflow" className="marketing-section marketing-workflow-section">
-        <div className="marketing-section-heading">
+        <ContourLines lines={16} seed={12} className="marketing-workflow-contours absolute top-0 right-0 h-56 w-[58%] text-brand/20" />
+        <div className="marketing-section-heading marketing-layer" data-scroll-reveal>
           <p className="marketing-kicker">One connected workflow</p>
           <h2 className="marketing-heading">Every exam has a before, a during and an after.</h2>
           <p className="marketing-lede">
             ExamVault keeps the work around an assessment connected, from the first question to the final published result.
           </p>
         </div>
-        <div className="marketing-workflow-grid">
-          {workflow.map(({ number, title, detail, icon: Icon }) => (
-            <article key={number} className="marketing-workflow-card">
+        <div className="marketing-workflow-grid marketing-layer">
+          {workflow.map(({ number, title, detail, icon: Icon }, index) => (
+            <article key={number} className="marketing-workflow-card" data-scroll-reveal data-reveal-order={index + 1}>
               <div className="flex items-start justify-between gap-3">
                 <span className="marketing-workflow-icon"><Icon className="size-5" aria-hidden /></span>
                 <span className="font-mono text-xs font-medium tabular-nums text-subtle-foreground">{number} / 03</span>
@@ -165,7 +171,8 @@ export function LandingPage() {
       </section>
 
       <section id="resilience" className="marketing-section marketing-resilience-section">
-        <div className="marketing-resilience-copy">
+        <ContourLines lines={22} seed={19} className="marketing-resilience-contours absolute inset-y-0 right-0 h-full w-[62%] text-brand/15" />
+        <div className="marketing-resilience-copy marketing-layer" data-scroll-reveal>
           <p className="marketing-kicker">Failure-resilient by design</p>
           <h2 className="marketing-heading">A network interruption should not erase a candidate’s work.</h2>
           <p className="marketing-lede">
@@ -184,11 +191,13 @@ export function LandingPage() {
             ))}
           </div>
         </div>
-        <RecoveryDemo />
+        <div className="marketing-layer" data-scroll-reveal>
+          <RecoveryDemo />
+        </div>
       </section>
 
       <section id="trust" className="marketing-section marketing-trust-section">
-        <div className="marketing-trust-header">
+        <div className="marketing-trust-header marketing-layer" data-scroll-reveal>
           <div>
             <p className="marketing-kicker">Trust is a process</p>
             <h2 className="marketing-heading">Clear rules for candidates. Useful evidence for examiners.</h2>
@@ -197,38 +206,39 @@ export function LandingPage() {
             Build confidence with accountable review, not claims of perfect prevention. Each role sees only what it needs to do its work.
           </p>
         </div>
-        <div className="marketing-trust-grid">
-          <article className="marketing-trust-feature">
+        <div className="marketing-trust-grid marketing-layer">
+          <article className="marketing-trust-feature" data-scroll-reveal data-reveal-order="1">
             <div className="marketing-trust-icon"><LockKeyhole className="size-5" aria-hidden /></div>
             <h3>Role-aware access</h3>
             <p>Administrators, examiners and candidates have distinct experiences, with permissions checked on the server.</p>
           </article>
-          <article className="marketing-trust-feature">
+          <article className="marketing-trust-feature" data-scroll-reveal data-reveal-order="2">
             <div className="marketing-trust-icon"><LifeBuoy className="size-5" aria-hidden /></div>
             <h3>Review with context</h3>
             <p>Grading history, outage evidence and candidate disputes support a transparent resolution workflow.</p>
           </article>
-          <article className="marketing-trust-feature">
+          <article className="marketing-trust-feature" data-scroll-reveal data-reveal-order="3">
             <div className="marketing-trust-icon"><ShieldCheck className="size-5" aria-hidden /></div>
             <h3>Results people can verify</h3>
             <p>Issued reports can be checked by code, while the public verification view exposes only minimum information.</p>
           </article>
         </div>
-        <div className="marketing-trust-note">
+        <div className="marketing-trust-note marketing-layer" data-scroll-reveal>
           <span className="marketing-trust-note-mark"><ShieldCheck className="size-5" aria-hidden /></span>
           <p><strong>Security with honest boundaries.</strong> Browser-based exams can detect some events, but cannot lock down an operating system or prevent every form of outside assistance.</p>
         </div>
       </section>
 
       <section className="marketing-section marketing-audience-section" aria-labelledby="audience-title">
-        <div className="marketing-audience-copy">
+        <GuillocheBand className="marketing-audience-rule absolute inset-x-0 bottom-0 h-2 text-primary" />
+        <div className="marketing-audience-copy marketing-layer" data-scroll-reveal>
           <p className="marketing-kicker">Designed around the people involved</p>
           <h2 id="audience-title" className="marketing-heading">One platform. Three clear responsibilities.</h2>
           <p className="marketing-lede">Each role gets a focused workspace for the decisions and tasks they own.</p>
         </div>
-        <div className="marketing-role-grid">
-          {roles.map(({ icon: Icon, title, detail, label }) => (
-            <Link key={title} href="/login" className="marketing-role-card">
+        <div className="marketing-role-grid marketing-layer">
+          {roles.map(({ icon: Icon, title, detail, label }, index) => (
+            <Link key={title} href="/login" className="marketing-role-card" data-scroll-reveal data-reveal-order={index + 1}>
               <div className="flex items-center justify-between gap-3">
                 <span className="marketing-role-icon"><Icon className="size-5" aria-hidden /></span>
                 <span className="text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-subtle-foreground">{label}</span>
@@ -244,7 +254,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section className="marketing-close">
+      <section className="marketing-close" data-scroll-reveal>
         <div className="marketing-close-decoration" aria-hidden />
         <div className="relative">
           <p className="marketing-kicker marketing-kicker-light">Start with the right kind of access</p>
@@ -261,7 +271,7 @@ export function LandingPage() {
         </Link>
       </section>
 
-      <footer className="marketing-footer">
+      <footer className="marketing-footer" data-scroll-reveal>
         <Link href="/" aria-label="ExamVault home" className="rounded-md">
           <Logo />
         </Link>

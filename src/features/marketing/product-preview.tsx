@@ -6,14 +6,57 @@ import { cn } from "@/lib/utils"
 
 type PreviewMode = "monitor" | "candidate"
 
-const candidates = [
-  { initials: "AK", name: "Ayesha Khan", detail: "Question 18 of 24", state: "Writing", tone: "text-success-text bg-success-soft" },
-  { initials: "BH", name: "Bilal Ahmed", detail: "Question 15 of 24", state: "Reconnected", tone: "text-info-text bg-info-soft" },
-  { initials: "SR", name: "Sara Rauf", detail: "Submitted at 10:42", state: "Submitted", tone: "text-muted-foreground bg-muted" },
+const monitorFrames = [
+  {
+    writing: 18,
+    reconnecting: 1,
+    candidates: [
+      { initials: "AK", name: "Ayesha Khan", detail: "Question 18 of 24", state: "Writing", tone: "text-success-text bg-success-soft", progress: 75 },
+      { initials: "BH", name: "Bilal Ahmed", detail: "Question 15 of 24", state: "Reconnected", tone: "text-info-text bg-info-soft", progress: 62 },
+      { initials: "SR", name: "Sara Rauf", detail: "Submitted at 10:42", state: "Submitted", tone: "text-muted-foreground bg-muted", progress: 100 },
+    ],
+  },
+  {
+    writing: 19,
+    reconnecting: 0,
+    candidates: [
+      { initials: "AK", name: "Ayesha Khan", detail: "Question 19 of 24", state: "Writing", tone: "text-success-text bg-success-soft", progress: 79 },
+      { initials: "BH", name: "Bilal Ahmed", detail: "Question 16 of 24", state: "Writing", tone: "text-success-text bg-success-soft", progress: 66 },
+      { initials: "SR", name: "Sara Rauf", detail: "Submitted at 10:42", state: "Submitted", tone: "text-muted-foreground bg-muted", progress: 100 },
+    ],
+  },
+  {
+    writing: 18,
+    reconnecting: 1,
+    candidates: [
+      { initials: "AK", name: "Ayesha Khan", detail: "Question 20 of 24", state: "Writing", tone: "text-success-text bg-success-soft", progress: 83 },
+      { initials: "BH", name: "Bilal Ahmed", detail: "Connection restored", state: "Reconnecting", tone: "text-info-text bg-info-soft", progress: 66 },
+      { initials: "SR", name: "Sara Rauf", detail: "Submitted at 10:42", state: "Submitted", tone: "text-muted-foreground bg-muted", progress: 100 },
+    ],
+  },
 ]
 
 export function ProductPreview() {
   const [mode, setMode] = React.useState<PreviewMode>("monitor")
+  const [monitorFrame, setMonitorFrame] = React.useState(0)
+  const [secondsRemaining, setSecondsRemaining] = React.useState(31)
+
+  React.useEffect(() => {
+    const timer = window.setInterval(() => {
+      setSecondsRemaining((remaining) => (remaining <= 1 ? 40 : remaining - 1))
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  React.useEffect(() => {
+    const timer = window.setInterval(() => {
+      setMonitorFrame((frame) => (frame + 1) % monitorFrames.length)
+    }, 4200)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  const currentMonitorFrame = monitorFrames[monitorFrame]
+  const formattedTime = `00:${String(secondsRemaining).padStart(2, "0")}`
 
   return (
     <section className="preview-shell animate-soft-rise" aria-label="Interactive product preview">
@@ -68,23 +111,23 @@ export function ProductPreview() {
                 <span className="preview-summary-label"> enrolled</span>
               </div>
               <div>
-                <span className="preview-summary-number">18</span>
+                <span className="preview-summary-number">{currentMonitorFrame.writing}</span>
                 <span className="preview-summary-label"> writing</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <WifiOff className="size-3.5 text-time-text" aria-hidden />
-                <span className="preview-summary-number">1</span>
+                <span className="preview-summary-number">{currentMonitorFrame.reconnecting}</span>
                 <span className="preview-summary-label"> reconnecting</span>
               </div>
             </div>
 
-            <div className="preview-table" aria-label="Sample candidate monitor">
+            <div className="preview-table" aria-label="Illustrative candidate monitor" aria-live="off">
               <div className="preview-table-head">
                 <span>Candidate</span>
                 <span>Progress</span>
                 <span>State</span>
               </div>
-              {candidates.map((candidate) => (
+              {currentMonitorFrame.candidates.map((candidate) => (
                 <div className="preview-table-row" key={candidate.initials}>
                   <span className="flex min-w-0 items-center gap-2">
                     <span className="grid size-7 shrink-0 place-items-center rounded-full bg-brand-soft text-[0.6rem] font-semibold text-brand-text">
@@ -92,7 +135,12 @@ export function ProductPreview() {
                     </span>
                     <span className="truncate text-xs font-medium text-foreground">{candidate.name}</span>
                   </span>
-                  <span className="text-xs tabular-nums text-muted-foreground">{candidate.detail}</span>
+                  <span className="min-w-0 text-xs tabular-nums text-muted-foreground">
+                    {candidate.detail}
+                    <span className="preview-progress-track" aria-hidden>
+                      <span className="preview-progress-fill" style={{ width: `${candidate.progress}%` }} />
+                    </span>
+                  </span>
                   <span className={cn("w-fit rounded-full px-2 py-1 text-[0.65rem] font-medium", candidate.tone)}>
                     {candidate.state}
                   </span>
@@ -113,10 +161,18 @@ export function ProductPreview() {
                 <p className="text-xs font-medium text-muted-foreground">Question 08 <span className="px-1 text-border-strong">/</span> 24</p>
                 <p className="mt-1 text-sm font-semibold text-foreground">Which status code indicates a resource was not found?</p>
               </div>
-              <div className="flex shrink-0 items-center gap-1.5 rounded-lg border bg-surface px-2.5 py-2 font-mono text-xs font-semibold tabular-nums text-foreground">
+              <div
+                className="preview-countdown flex shrink-0 items-center gap-1.5 rounded-lg border bg-surface px-2.5 py-2 font-mono text-xs font-semibold tabular-nums text-foreground"
+                role="timer"
+                aria-live="off"
+                aria-label={`Illustrative question timer: ${formattedTime} remaining`}
+              >
                 <Clock3 className="size-3.5 text-time-text" aria-hidden />
-                00:31
+                {formattedTime}
               </div>
+            </div>
+            <div className="preview-timer-track" aria-hidden>
+              <span style={{ width: `${(secondsRemaining / 40) * 100}%` }} />
             </div>
             <div className="mt-4 flex flex-col gap-2">
               {["200 OK", "404 Not Found", "503 Service Unavailable"].map((option, index) => (
@@ -133,7 +189,7 @@ export function ProductPreview() {
                 <Check className="size-3.5" aria-hidden />
                 Saved on this device
               </span>
-              <span className="text-[0.65rem] text-muted-foreground">Illustrative question</span>
+              <span className="text-[0.65rem] text-muted-foreground">Illustrative question · demo timer</span>
             </div>
           </div>
         )}
