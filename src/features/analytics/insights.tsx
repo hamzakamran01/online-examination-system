@@ -3,6 +3,14 @@ import { useState } from "react"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
 import { Panel, PanelHeader, Stat } from "@/components/shell/page-header"
 import type { ExamAnalytics } from "@/server/services/analytics"
+const flagHelp: Record<string, string> = {
+  "Not enough data": "Fewer than five graded responses.",
+  "Very hard or flawed": "Fewer than 20% met the scoring threshold.",
+  "Too easy": "More than 95% met the scoring threshold.",
+  "Review wording": "The upper group performed less than 10 percentage points better.",
+  "Frequently skipped": "At least 30% of candidates who received this item skipped it.",
+  "Strong distractor": "At least 40% of candidates who received this item chose the same wrong option.",
+}
 const number = (n: number | null) =>
   n === null ? "Pending" : n.toLocaleString(undefined, { maximumFractionDigits: 1 })
 export function Insights({ data }: { data: ExamAnalytics }) {
@@ -92,7 +100,8 @@ export function Insights({ data }: { data: ExamAnalytics }) {
                   "Seen",
                   "Answered",
                   "Skipped",
-                  "Fully correct",
+                  "Met threshold",
+                  "Discrimination",
                   "Average / max",
                   "Authored / observed",
                   "Most chosen wrong option",
@@ -106,13 +115,27 @@ export function Insights({ data }: { data: ExamAnalytics }) {
                 <tr key={q.id} className="border-t">
                   <td className="max-w-xs py-3 pr-3">
                     {q.stem}
-                    {q.skip >= 30 && <p className="text-warning-text">Frequently skipped</p>}
-                    {q.correct !== null && q.correct < 40 && <p className="text-warning-text">Commonly incorrect</p>}
+                    <ul className="mt-2 flex flex-wrap gap-1">
+                      {q.flags.map((flag) => (
+                        <li
+                          key={flag}
+                          tabIndex={0}
+                          title={flagHelp[flag]}
+                          className="rounded-full bg-warning-soft px-2 py-0.5 text-xs text-warning-text"
+                        >
+                          {flag}
+                          <span className="sr-only">. {flagHelp[flag]}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </td>
                   <td>{q.seen}</td>
                   <td>{number(100 - q.skip)}%</td>
                   <td>{number(q.skip)}%</td>
-                  <td>{q.correct === null ? "Written" : number(q.correct) + "%"}</td>
+                  <td>{q.correct === null ? "Pending" : number(q.correct) + "%"}</td>
+                  <td>
+                    {q.index === null ? q.discriminationLabel : `${q.index.toFixed(2)} (${q.discriminationLabel})`}
+                  </td>
                   <td>
                     {number(q.avg)} / {number(q.max)}
                   </td>
@@ -125,6 +148,15 @@ export function Insights({ data }: { data: ExamAnalytics }) {
             </tbody>
           </table>
         </div>
+      </Panel>
+      <Panel>
+        <PanelHeader title="How to read this" />
+        <p className="p-4 text-sm text-muted-foreground">
+          Discrimination compares the top and bottom 27% by exam percentage. It measures the difference in the share
+          earning full marks on an objective item or at least half marks on a written item. Only candidates who received
+          the item count, and written answers awaiting marks are excluded. Flags identify items to review once there are
+          at least five graded responses.
+        </p>
       </Panel>
     </div>
   )
