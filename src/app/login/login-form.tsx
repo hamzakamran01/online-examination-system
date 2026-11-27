@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { AlertCircle, Loader2 } from "lucide-react"
+import { AlertCircle, ChevronDown, Loader2 } from "lucide-react"
 import { authClient } from "@/lib/auth-client"
 import { signInSchema, type SignInInput } from "@/lib/validation/auth"
 import { Button } from "@/components/ui/button"
@@ -51,8 +51,8 @@ export function LoginForm({ next }: { next?: string }) {
   })
 
   return (
-    <div className="space-y-8">
-      <form onSubmit={onSubmit} noValidate className="space-y-5">
+    <div className="flex flex-col gap-5">
+      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
         {error && (
           <div role="alert" className="flex gap-2 rounded-lg border border-danger/30 bg-danger-soft p-3 text-sm text-danger-text">
             <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
@@ -77,30 +77,39 @@ export function LoginForm({ next }: { next?: string }) {
         </Button>
       </form>
 
-      <div className="overflow-hidden rounded-xl border bg-surface-sunken/60">
-        <p className="border-b px-4 py-2.5 text-xs font-medium text-muted-foreground">Demo accounts with fictional data. Pick a role to fill the form.</p>
-        <ul className="divide-y">
-          {DEMO.map((d) => (
-            <li key={d.email}>
-              <button
-                type="button"
-                onClick={() => {
-                  form.setValue("email", d.email)
-                  form.setValue("password", d.password)
-                  form.clearErrors()
-                }}
-                className="group flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-surface focus-visible:bg-surface"
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium">{d.role}</span>
-                  <span className="block truncate text-xs text-muted-foreground">{d.blurb}</span>
-                </span>
-                <span className="rounded-md border bg-surface px-2 py-0.5 text-xs font-medium text-brand-text shadow-xs transition-colors group-hover:border-brand/40">Use</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
+      <details className="group/demo overflow-hidden rounded-xl border bg-surface-sunken/50">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3.5 text-xs font-semibold text-muted-foreground marker:hidden [&::-webkit-details-marker]:hidden">
+          Demo access
+          <span className="flex items-center gap-2 font-normal text-subtle-foreground">
+            Fictional accounts
+            <ChevronDown className="size-4 transition-transform group-open/demo:rotate-180" aria-hidden />
+          </span>
+        </summary>
+        <div className="border-t bg-surface">
+          <p className="px-3.5 py-2.5 text-xs leading-5 text-muted-foreground">Choose a role to fill the form with a demo account.</p>
+          <ul className="divide-y">
+            {DEMO.map((d) => (
+              <li key={d.email}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    form.setValue("email", d.email)
+                    form.setValue("password", d.password)
+                    form.clearErrors()
+                  }}
+                  className="group flex min-h-12 w-full items-center gap-3 px-3.5 py-2 text-left transition-colors hover:bg-surface-sunken focus-visible:bg-surface-sunken"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium">{d.role}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{d.blurb}</span>
+                  </span>
+                  <span className="rounded-md border bg-surface px-2 py-0.5 text-xs font-medium text-brand-text shadow-xs transition-colors group-hover:border-brand/40">Use</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </details>
     </div>
   )
 }

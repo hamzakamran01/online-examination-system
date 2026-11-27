@@ -62,7 +62,7 @@ Each task maps to SPEC IDs. Brief sections define WHAT we build; this order foll
 ## Phase 4: FEATURE FREEZE (final 1:30)
 - [ ] P4.1 Demo seed: completed + published exam with graded attempts, ongoing exam with live attempts, upcoming, draft
 - [ ] P4.2 README complete, credentials verified on live URL, credits incl. reference repos as design inspiration only (SUB-7.2)
-- [ ] P4.3 UI polish: empty states, 375px check, focus, contrast (UX-8.x; dashboard density pass built locally, full responsive/accessibility pass remains)
+- [ ] P4.3 UI polish: empty states, 375px check, focus, contrast (UX-8.x; dashboard density pass built locally; public landing and institutional sign-in built locally; full responsive/accessibility pass remains)
 - [ ] P4.4 Rehearse DEMO.md twice on the live URL; final push + deploy before deadline (SUB-7.4)
 
 ## Reference repos (reviewed, see DECISIONS D9)

@@ -62,3 +62,9 @@ Append new entries at the bottom. Format: decision, why, alternative rejected.
 ## D13 Compact dashboard metrics (decided)
 - Role dashboards use shorter KPI cards, smaller trend graphics, and tighter section spacing so operational content appears sooner without removing the candidate's prominent next-exam focus.
 - Rejected: a full dashboard redesign or shrinking detailed exam and result screens, which would weaken established role-specific hierarchy.
+
+## D14 Public product entry and institutional sign-in (decided)
+- The public home page explains the actual exam lifecycle, outage-resilient answer handling, role boundaries and accountable result review. Signed-in users continue directly to their role home.
+- Sign-in remains a separate institutional access flow. Accounts are provisioned by administrators; public self-registration and social sign-in are not enabled in the current Better Auth configuration.
+- Inspiration reviewed: Inspera Assessment, ExamSoft, Respondus LockDown Browser, Linear, Stripe Enterprise, Vercel and Notion Enterprise. Adapted patterns: show real product UI early, make the workflow legible, clarify audience paths, and explain security boundaries plainly.
+- Rejected: unsubstantiated customer logos, metrics or testimonials; claims of perfect prevention or OS lockdown; and third-party sign-in buttons without configured providers.
