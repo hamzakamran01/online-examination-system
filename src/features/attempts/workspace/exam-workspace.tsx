@@ -36,7 +36,7 @@ import { Logo } from "@/components/shell/logo"
 import { fmtClock, fmtMarks } from "@/lib/format"
 import type { AnswerResponse, PaperItem } from "@/lib/domain/paper"
 import type { AttemptView } from "@/server/services/attempts"
-import { SyncEngine, type Entry, type SyncState } from "./sync-engine"
+import { SERVER_SNAPSHOT, SyncEngine, type Entry, type SyncState } from "./sync-engine"
 
 type AnswerMap = Record<string, Entry>
 
@@ -277,16 +277,18 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const [submitting, setSubmitting] = React.useState(false)
   const [locked, setLocked] = React.useState<null | "time" | "submitted">(null)
-  const [, force] = React.useReducer((x: number) => x + 1, 0)
-  const [mounted, setMounted] = React.useState(false)
   const liveRef = React.useRef<HTMLParagraphElement>(null)
+  const expiredRef = React.useRef(false)
 
   const finish = React.useCallback(() => router.replace(`/attempt/${view.id}/done`), [router, view.id])
 
-  const engineRef = React.useRef<SyncEngine | null>(null)
-  if (!engineRef.current && typeof window !== "undefined") {
-    const serverMax = Math.max(0, ...Object.values(view.answers).map((a) => a.seq))
-    engineRef.current = new SyncEngine(view.id, serverMax, sync, (o) => {
+  // One engine per attempt. It touches localStorage only in the browser.
+  const [engine] = React.useState(() => new SyncEngine(view.id, Math.max(0, ...Object.values(view.answers).map((a) => a.seq))))
+  const sync$ = React.useSyncExternalStore(engine.subscribe, engine.getSnapshot, () => SERVER_SNAPSHOT)
+
+  // Restore unsynced journal entries (refresh while offline) and start syncing.
+  React.useEffect(() => {
+    engine.bind(sync, (o) => {
       if (o.kind === "unauthorized") toast.error("Your session ended. Sign in again to continue; your answers are kept on this device.")
       else {
         setLocked("time")
@@ -294,21 +296,13 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
         setTimeout(finish, 1500)
       }
     })
-  }
-  const engine = engineRef.current
-
-  // Restore unsynced journal entries (refresh while offline) and start syncing.
-  React.useEffect(() => {
-    if (!engine) return
-    setMounted(true)
     const serverSeqs = Object.fromEntries(Object.entries(view.answers).map(([k, v]) => [k, v.seq]))
     const restore = engine.restorable(serverSeqs)
     if (restore.length) {
-      setAnswers((a) => ({ ...a, ...Object.fromEntries(restore) }))
+      queueMicrotask(() => setAnswers((a) => ({ ...a, ...Object.fromEntries(restore) })))
       toast.info(`Restored ${restore.length} answer${restore.length === 1 ? "" : "s"} saved on this device.`)
     }
     engine.dropStale(serverSeqs)
-    const unsub = engine.subscribe(force)
     void engine.flush()
     // Fresh server time reading so the countdown is exact after hydration.
     const t0 = Date.now()
@@ -328,50 +322,46 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
     window.addEventListener("offline", offline)
     const poll = setInterval(() => engine.pendingCount && void engine.flush(), 10_000)
     return () => {
-      unsub()
       clearInterval(poll)
       window.removeEventListener("online", online)
       window.removeEventListener("offline", offline)
+      engine.stop()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  React.useEffect(() => () => engineRef.current?.stop(), [])
-
-  // Time warnings and expiry.
+  // Time warnings and expiry. The lock is derived from the server-synced clock.
+  const timeUp = remaining <= 0
+  const lockState = locked ?? (timeUp ? "time" : null)
   const warned = React.useRef<Set<number>>(new Set())
   React.useEffect(() => {
     for (const m of [10, 5, 1]) {
       if (remaining <= m * 60_000 && remaining > (m - 1) * 60_000 + 50_000 && !warned.current.has(m)) {
         warned.current.add(m)
-        const msg = `${m} minute${m === 1 ? "" : "s"} remaining.${engine?.pendingCount ? " Some answers are still waiting to sync." : ""}`
+        const msg = `${m} minute${m === 1 ? "" : "s"} remaining.${engine.pendingCount ? " Some answers are still waiting to sync." : ""}`
         toast.warning(msg)
         if (liveRef.current) liveRef.current.textContent = msg
       }
     }
-    if (remaining <= 0 && !locked) {
-      setLocked("time")
-      engine?.stop()
+    if (timeUp && !expiredRef.current) {
+      expiredRef.current = true
+      engine.stop()
       fetch(`/api/attempts/${view.id}/submit`, { method: "POST" })
         .catch(() => {})
         .finally(() => setTimeout(finish, 1200))
     }
-  }, [remaining, locked, engine, view.id, finish])
+  }, [remaining, timeUp, engine, view.id, finish])
 
-  const answersRef = React.useRef(answers)
-  answersRef.current = answers
   const update = (itemId: string, patch: { response?: AnswerResponse | null; flagged?: boolean }, debounce = 500) => {
-    if (locked || !engine) return
-    const cur = answersRef.current[itemId]
+    if (lockState) return
+    const cur = answers[itemId]
     const response = patch.response !== undefined ? patch.response : (cur?.response ?? null)
     const flagged = patch.flagged ?? cur?.flagged ?? false
     const entry = engine.record(itemId, response, flagged, debounce)
-    answersRef.current = { ...answersRef.current, [itemId]: entry }
-    setAnswers(answersRef.current)
+    setAnswers((prev) => ({ ...prev, [itemId]: entry }))
   }
 
   const submit = async () => {
-    if (!engine) return
     setSubmitting(true)
     await engine.flush()
     if (engine.pendingCount) {
@@ -393,7 +383,7 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
   }
 
   const item = items[current]
-  const pending = engine?.pendingCount ?? 0
+  const pending = sync$.pending
   const unansweredIdx = items.map((it, i) => (answered(answers[it.itemId]?.response) ? -1 : i)).filter((i) => i >= 0)
   const flaggedIdx = items.map((it, i) => (answers[it.itemId]?.flagged ? i : -1)).filter((i) => i >= 0)
   const low = remaining <= 5 * 60_000
@@ -421,7 +411,7 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{view.examTitle}</p>
             <div className="hidden sm:block">
-              {mounted && engine && <SyncPill state={engine.state} pending={pending} lastSyncedAt={engine.lastSyncedAt} />}
+              <SyncPill state={sync$.state} pending={pending} lastSyncedAt={sync$.lastSyncedAt} />
             </div>
           </div>
           <div
@@ -438,19 +428,19 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
           <Button variant="outline" className="lg:hidden" onClick={() => setPaletteOpen(true)} aria-label="Show all questions">
             <LayoutGrid />
           </Button>
-          <Button onClick={() => setMode("review")} disabled={!!locked} className="hidden sm:inline-flex">
+          <Button onClick={() => setMode("review")} disabled={!!lockState} className="hidden sm:inline-flex">
             <Send />
             Review and submit
           </Button>
         </div>
-        <div className="border-t px-4 py-1.5 sm:hidden">{mounted && engine && <SyncPill state={engine.state} pending={pending} lastSyncedAt={engine.lastSyncedAt} />}</div>
+        <div className="border-t px-4 py-1.5 sm:hidden"><SyncPill state={sync$.state} pending={pending} lastSyncedAt={sync$.lastSyncedAt} /></div>
       </header>
 
-      {locked && (
+      {lockState && (
         <div role="alert" className="mx-auto mt-4 max-w-3xl px-4">
           <div className="flex items-center gap-2 rounded-xl border border-info/30 bg-info-soft p-4 text-sm text-info-text">
             <Loader2 className="size-4 animate-spin" aria-hidden />
-            {locked === "time" ? "Time is up. Finalizing your submission." : "Submitting."}
+            {lockState === "time" ? "Time is up. Finalizing your submission." : "Submitting."}
           </div>
         </div>
       )}
@@ -476,7 +466,7 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
                 index={current}
                 total={items.length}
                 entry={answers[item.itemId]}
-                disabled={!!locked}
+                disabled={!!lockState}
                 onAnswer={(r) => update(item.itemId, { response: r }, item.type === "written" ? 900 : 300)}
               />
               <nav aria-label="Question navigation" className="mt-4 flex flex-wrap items-center gap-2">
@@ -487,7 +477,7 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
                 <Button
                   variant={answers[item.itemId]?.flagged ? "secondary" : "ghost"}
                   aria-pressed={!!answers[item.itemId]?.flagged}
-                  disabled={!!locked}
+                  disabled={!!lockState}
                   onClick={() => update(item.itemId, { flagged: !answers[item.itemId]?.flagged }, 300)}
                   className={cn(answers[item.itemId]?.flagged && "text-warning-text")}
                 >
@@ -501,7 +491,7 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
                       <ChevronRight />
                     </Button>
                   ) : (
-                    <Button onClick={() => setMode("review")} disabled={!!locked}>
+                    <Button onClick={() => setMode("review")} disabled={!!lockState}>
                       Review answers
                       <ChevronRight />
                     </Button>
@@ -559,7 +549,7 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
                   <ChevronLeft />
                   Back to questions
                 </Button>
-                <Button onClick={() => setConfirmOpen(true)} disabled={!!locked || submitting}>
+                <Button onClick={() => setConfirmOpen(true)} disabled={!!lockState || submitting}>
                   <Send />
                   Submit exam
                 </Button>
@@ -572,7 +562,7 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
           <div className="sticky top-24 space-y-4 rounded-2xl border bg-card p-5 shadow-panel">
             <p className="text-sm font-semibold">Questions</p>
             <Palette items={items} answers={answers} current={mode === "question" ? current : -1} onJump={jump} />
-            <Button variant="outline" className="w-full" onClick={() => setMode("review")} disabled={!!locked}>
+            <Button variant="outline" className="w-full" onClick={() => setMode("review")} disabled={!!lockState}>
               Review and submit
             </Button>
           </div>
@@ -588,7 +578,7 @@ export function ExamWorkspace({ view }: { view: AttemptView }) {
               setPaletteOpen(false)
               setMode("review")
             }}
-            disabled={!!locked}
+            disabled={!!lockState}
           >
             Review and submit
           </Button>
