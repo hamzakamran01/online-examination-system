@@ -15,6 +15,13 @@
       "when": 1795778713422,
       "tag": "0001_resilience_disputes",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795783767288,
+      "tag": "0002_secure_sequential",
+      "breakpoints": true
     }
   ]
 }

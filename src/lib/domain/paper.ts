@@ -16,9 +16,12 @@ export type PaperItem = {
   difficulty: "easy" | "medium" | "hard"
   /** Options in the order this candidate sees them. Empty for written. */
   options: PaperOption[]
+  /** Secure mode: seconds this question stays open, frozen at start. */
+  timeLimitSec?: number
 }
 
-export type Paper = { items: PaperItem[] }
+/** `mode` is frozen at start, so changing the exam later never changes a running attempt. */
+export type Paper = { items: PaperItem[]; mode?: "standard" | "secure" }
 
 /** itemId -> correct option ids (written items have an empty list and a rubric). */
 export type AnswerKey = Record<string, { correct: string[]; rubric?: string | null }>

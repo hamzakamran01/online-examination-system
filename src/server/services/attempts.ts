@@ -25,6 +25,7 @@ import { saveAnswersSchema, type SaveAnswersInput } from "@/lib/validation/attem
 import { heartbeatSchema, type HeartbeatInput } from "@/lib/validation/monitoring"
 import { round2 } from "@/lib/format"
 import { attemptTotals, type VoidRule } from "@/lib/domain/scoring"
+import { DEFAULT_TIME_LIMIT_SEC, advanceByTime, isSecure, itemDeadline, redactForSecure } from "@/lib/domain/secure"
 import { getManagedExam } from "./exams"
 import { audit } from "./audit"
 import { recordClientSignals, touchAttempt } from "./presence"
@@ -63,6 +64,7 @@ async function buildPaper(tx: Tx, exam: typeof exams.$inferSelect) {
       difficulty: questions.difficulty,
       topic: topics.name,
       marks: examQuestions.marks,
+      timeLimitSec: examQuestions.timeLimitSec,
     })
     .from(examQuestions)
     .innerJoin(questions, eq(questions.id, examQuestions.questionId))
@@ -91,9 +93,10 @@ async function buildPaper(tx: Tx, exam: typeof exams.$inferSelect) {
       topic: r.topic,
       difficulty: r.difficulty,
       options: ordered.map((o) => ({ id: o.id, text: o.text })),
+      timeLimitSec: r.timeLimitSec ?? DEFAULT_TIME_LIMIT_SEC[r.type],
     }
   })
-  const paper: Paper = { items: exam.shuffleQuestions ? shuffle(items) : items }
+  const paper: Paper = { items: exam.shuffleQuestions ? shuffle(items) : items, mode: exam.deliveryMode }
   const maxMarks = round2(items.reduce((s, i) => s + i.marks, 0))
   return { paper, key, maxMarks }
 }
@@ -155,7 +158,7 @@ export async function recalcAttempt(tx: Tx, attempt: Pick<AttemptRow, "id" | "pa
 }
 
 /** Finalizes a locked in-progress attempt exactly once (invariant 4). */
-async function finalizeLocked(tx: Tx, a: AttemptRow, reason: "candidate" | "timeout" | "examiner", now: Date) {
+export async function finalizeLocked(tx: Tx, a: AttemptRow, reason: "candidate" | "timeout" | "examiner", now: Date) {
   if (a.status !== "in_progress") return false
   const rows = await tx
     .select({ itemId: answers.itemId, response: answers.response })
@@ -239,6 +242,7 @@ export async function startAttempt(actor: SessionUser, examId: string, opts: { s
           paper,
           answerKey: key,
           maxMarks,
+          itemStartedAt: now,
         })
         .returning({ id: attempts.id })
       await tx.insert(attemptEvents).values({ attemptId: a.id, type: "started", source: "server", detail: { sandbox: true } })
@@ -274,7 +278,7 @@ export async function startAttempt(actor: SessionUser, examId: string, opts: { s
       const deadlineAt = new Date(Math.min(now.getTime() + exam.durationMin * 60_000, exam.endsAt.getTime()))
       const [a] = await tx
         .insert(attempts)
-        .values({ examId, candidateId: actor.id, startedAt: now, deadlineAt, paper, answerKey: key, maxMarks, lastSeenAt: now })
+        .values({ examId, candidateId: actor.id, startedAt: now, deadlineAt, paper, answerKey: key, maxMarks, lastSeenAt: now, itemStartedAt: now })
         .returning({ id: attempts.id })
       await tx.insert(attemptEvents).values({ attemptId: a.id, type: "started", source: "server" })
       return { attemptId: a.id }
@@ -295,11 +299,53 @@ export async function startAttempt(actor: SessionUser, examId: string, opts: { s
 /* ----------------------------------------------------------------------------
  * Runtime (C-3.5, invariants 1, 3, 4)
  * ------------------------------------------------------------------------- */
-async function lockOwnAttempt(tx: Tx, actor: SessionUser, attemptId: string) {
+export async function lockOwnAttempt(tx: Tx, actor: SessionUser, attemptId: string) {
   const [a] = await tx.select().from(attempts).where(eq(attempts.id, attemptId)).for("update")
   // Ownership: the candidate (or the examiner who owns a sandbox attempt). Others get 404.
   if (!a || a.candidateId !== actor.id) throw notFound("Attempt")
   return a
+}
+
+/**
+ * Secure mode: closes every question whose server-side timer has run out, in order, and
+ * finalizes the attempt when the last one closes. Call with the attempt row locked.
+ * Returns the row as it now stands.
+ */
+export async function syncSecure(tx: Tx, a: AttemptRow, now: Date): Promise<AttemptRow> {
+  if (!isSecure(a.paper) || a.status !== "in_progress") return a
+  const step = advanceByTime(a.paper, a.cursor, a.itemStartedAt ?? a.startedAt, now, a.deadlineAt)
+  if (!step.closed.length) return a
+  await tx.update(attempts).set({ cursor: step.cursor, itemStartedAt: step.itemStartedAt }).where(eq(attempts.id, a.id))
+  await tx.insert(attemptEvents).values(
+    step.closed.map((index) => ({ attemptId: a.id, type: "question_closed" as const, source: "server" as const, detail: { index, reason: "time" } }))
+  )
+  const next = { ...a, cursor: step.cursor, itemStartedAt: step.itemStartedAt }
+  if (step.finished) {
+    await finalizeLocked(tx, next, "timeout", now)
+    return { ...next, status: "auto_submitted" }
+  }
+  return next
+}
+
+export type SecureState = {
+  cursor: number
+  total: number
+  itemDeadlineAt: string | null
+  locked: boolean
+  lockReason: string | null
+  /** Index of every question that was closed with an answer, for the progress ledger. */
+  answeredClosed: number[]
+}
+
+function secureState(a: AttemptRow, answeredIds: Set<string>): SecureState {
+  return {
+    cursor: a.cursor,
+    total: a.paper.items.length,
+    itemDeadlineAt: a.cursor < a.paper.items.length ? itemDeadline(a.paper, a.cursor, a.itemStartedAt ?? a.startedAt, a.deadlineAt).toISOString() : null,
+    locked: !!a.lockedAt,
+    lockReason: a.lockReason,
+    answeredClosed: a.paper.items.flatMap((it, i) => (i < a.cursor && answeredIds.has(it.itemId) ? [i] : [])),
+  }
 }
 
 export type AttemptView = {
@@ -317,6 +363,8 @@ export type AttemptView = {
   answers: Record<string, { response: AnswerResponse | null; flagged: boolean; seq: number }>
   scratchpad: string
   announcements: { id: string; body: string; createdAt: string }[]
+  /** Present only for secure sequential exams. */
+  secure: SecureState | null
 }
 
 /** Candidate-safe view. Never includes the answer key or scores (invariant 3). */
@@ -328,7 +376,7 @@ export async function getAttemptView(actor: SessionUser, attemptId: string): Pro
       await finalizeLocked(tx, row, "timeout", now)
       return { ...row, status: "auto_submitted" as const }
     }
-    return row
+    return syncSecure(tx, row, now)
   })
   const [exam] = await db
     .select({ title: exams.title, instructions: exams.instructions })
@@ -356,10 +404,12 @@ export async function getAttemptView(actor: SessionUser, attemptId: string): Pro
     deadlineAt: a.deadlineAt.toISOString(),
     serverNow: new Date().toISOString(),
     maxMarks: a.maxMarks,
-    paper: a.paper,
+    // Secure mode: only the open question is sent; future questions never reach the browser.
+    paper: isSecure(a.paper) ? redactForSecure(a.paper, a.cursor) : a.paper,
     answers: Object.fromEntries(ans.map((x) => [x.itemId, { response: x.response, flagged: x.flagged, seq: x.seq }])),
     scratchpad: a.scratchpad,
     announcements: notes.map((n) => ({ id: n.id, body: n.body, createdAt: n.createdAt.toISOString() })),
+    secure: isSecure(a.paper) ? secureState(a, new Set(ans.filter((x) => x.response !== null).map((x) => x.itemId))) : null,
   }
 }
 
@@ -384,7 +434,8 @@ export async function saveAnswers(actor: SessionUser, attemptId: string, raw: Sa
   const input = saveAnswersSchema.parse(raw)
   const now = new Date()
   const result = await db.transaction(async (tx) => {
-    const a = await lockOwnAttempt(tx, actor, attemptId)
+    const locked0 = await lockOwnAttempt(tx, actor, attemptId)
+    const a = await syncSecure(tx, locked0, now)
     if (a.status !== "in_progress") return { kind: "finalized" as const, status: a.status }
     if (pastGrace(a.deadlineAt, now)) {
       await tx.insert(attemptEvents).values({
@@ -395,6 +446,16 @@ export async function saveAnswers(actor: SessionUser, attemptId: string, raw: Sa
       })
       await finalizeLocked(tx, a, "timeout", now)
       return { kind: "deadline" as const }
+    }
+
+    // Secure mode: a locked attempt accepts nothing; only the open question can change.
+    if (isSecure(a.paper) && a.lockedAt) return { kind: "locked" as const }
+    const openId = isSecure(a.paper) ? a.paper.items[a.cursor]?.itemId : null
+    const closedIds = openId === null ? [] : input.answers.filter((x) => x.itemId !== openId).map((x) => x.itemId)
+    if (openId !== null) input.answers = input.answers.filter((x) => x.itemId === openId)
+    if (!input.answers.length) {
+      await touchAttempt(tx, a, input.clientId, now, input.presence)
+      return { kind: "ok" as const, deadlineAt: a.deadlineAt, closedIds }
     }
 
     const items = new Map(a.paper.items.map((i) => [i.itemId, i]))
@@ -428,13 +489,17 @@ export async function saveAnswers(actor: SessionUser, attemptId: string, raw: Sa
       })
 
     await touchAttempt(tx, a, input.clientId, now, input.presence)
-    return { kind: "ok" as const, deadlineAt: a.deadlineAt }
+    return { kind: "ok" as const, deadlineAt: a.deadlineAt, closedIds }
   })
 
   if (result.kind === "finalized") throw new AppError("CONFLICT", "This attempt has already been submitted.")
   if (result.kind === "deadline") throw new AppError("DEADLINE_PASSED", "Time is up. Answers sent after the deadline cannot be accepted.")
+  if (result.kind === "locked") throw new AppError("LOCKED", "Your exam is paused. Ask your examiner to release it.")
+  const sent = saveAnswersSchema.parse(raw).answers
   return {
-    acked: input.answers.map((x) => ({ itemId: x.itemId, seq: x.seq })),
+    // Answers to questions that already closed are acknowledged (so the device journal drops them) but not stored.
+    acked: sent.map((x) => ({ itemId: x.itemId, seq: x.seq })),
+    closed: result.closedIds,
     serverNow: new Date().toISOString(),
     deadlineAt: result.deadlineAt.toISOString(),
   }
@@ -445,6 +510,7 @@ export type HeartbeatResult = {
   serverNow: string
   deadlineAt: string
   extensionSec: number
+  secure: { cursor: number; itemDeadlineAt: string | null; locked: boolean; lockReason: string | null } | null
   announcements: { id: string; body: string; createdAt: string }[]
   extensions: { id: string; seconds: number; createdAt: string }[]
 }
@@ -459,14 +525,23 @@ export async function heartbeat(actor: SessionUser, attemptId: string, raw: Hear
   const input = heartbeatSchema.parse(raw)
   const now = new Date()
   const a = await db.transaction(async (tx) => {
-    const row = await lockOwnAttempt(tx, actor, attemptId)
-    if (row.status !== "in_progress") return row
-    if (pastGrace(row.deadlineAt, now)) {
-      await finalizeLocked(tx, row, "timeout", now)
-      return { ...row, status: "auto_submitted" as const }
+    const locked0 = await lockOwnAttempt(tx, actor, attemptId)
+    if (locked0.status !== "in_progress") return locked0
+    if (pastGrace(locked0.deadlineAt, now)) {
+      await finalizeLocked(tx, locked0, "timeout", now)
+      return { ...locked0, status: "auto_submitted" as const }
     }
+    let row = await syncSecure(tx, locked0, now)
+    if (row.status !== "in_progress") return row
     await recordClientSignals(tx, row.id, input.signals, now)
     await touchAttempt(tx, row, input.clientId, now, input.presence)
+    // Server-side backup for secure mode: a heartbeat from a hidden tab locks the attempt
+    // even if the page's own lock request never arrived (sandbox previews never lock).
+    if (isSecure(row.paper) && !row.isSandbox && !row.lockedAt && input.presence && !input.presence.visible) {
+      await tx.update(attempts).set({ lockedAt: now, lockReason: "heartbeat_hidden" }).where(eq(attempts.id, row.id))
+      await tx.insert(attemptEvents).values({ attemptId: row.id, type: "secure_locked", source: "server", detail: { reason: "heartbeat_hidden" } })
+      row = { ...row, lockedAt: now, lockReason: "heartbeat_hidden" }
+    }
     return row
   })
 
@@ -490,6 +565,15 @@ export async function heartbeat(actor: SessionUser, attemptId: string, raw: Hear
     serverNow: new Date().toISOString(),
     deadlineAt: a.deadlineAt.toISOString(),
     extensionSec: a.extensionSec,
+    secure: isSecure(a.paper)
+      ? {
+          cursor: a.cursor,
+          itemDeadlineAt:
+            a.cursor < a.paper.items.length ? itemDeadline(a.paper, a.cursor, a.itemStartedAt ?? a.startedAt, a.deadlineAt).toISOString() : null,
+          locked: !!a.lockedAt,
+          lockReason: a.lockReason,
+        }
+      : null,
     announcements: notes.map((n) => ({ id: n.id, body: n.body, createdAt: n.createdAt.toISOString() })),
     extensions: ext.map((x) => ({ id: x.id, seconds: x.seconds, createdAt: x.createdAt.toISOString() })),
   }

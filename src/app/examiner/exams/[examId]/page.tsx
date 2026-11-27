@@ -31,6 +31,7 @@ export default async function ExamSettingsPage({ params }: PageProps<"/examiner/
           shuffleQuestions: exam.shuffleQuestions,
           shuffleOptions: exam.shuffleOptions,
           releaseAnswerReview: exam.releaseAnswerReview,
+          deliveryMode: exam.deliveryMode,
         }}
       />
     </div>

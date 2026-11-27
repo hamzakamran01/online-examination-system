@@ -6,6 +6,7 @@ import type { SessionUser } from "@/server/auth/guards"
 import { AppError, notFound } from "@/server/errors"
 import { audit } from "./audit"
 import { effectiveStatus } from "@/lib/domain/exam-status"
+import { paperTimeSec } from "@/lib/domain/secure"
 import { examQuestionsSchema, examSchema, type ExamInput, type ExamQuestionsInput } from "@/lib/validation/exams"
 import { round2 } from "@/lib/format"
 
@@ -79,6 +80,7 @@ function toValues(input: ReturnType<typeof examSchema.parse>) {
     shuffleQuestions: input.shuffleQuestions,
     shuffleOptions: input.shuffleOptions,
     releaseAnswerReview: input.releaseAnswerReview,
+    deliveryMode: input.deliveryMode,
   }
 }
 
@@ -115,6 +117,7 @@ export async function getExamQuestions(actor: SessionUser, examId: string) {
       questionId: examQuestions.questionId,
       position: examQuestions.position,
       marks: examQuestions.marks,
+      timeLimitSec: examQuestions.timeLimitSec,
       stem: questions.stem,
       type: questions.type,
       difficulty: questions.difficulty,
@@ -146,7 +149,7 @@ export async function setExamQuestions(actor: SessionUser, raw: ExamQuestionsInp
     if (input.items.length)
       await tx
         .insert(examQuestions)
-        .values(input.items.map((i, position) => ({ examId: exam.id, questionId: i.questionId, marks: i.marks, position })))
+        .values(input.items.map((i, position) => ({ examId: exam.id, questionId: i.questionId, marks: i.marks, timeLimitSec: i.timeLimitSec, position })))
     await audit(tx, actor.id, "exam.questions_set", "exam", exam.id, { count: input.items.length })
     return { count: input.items.length }
   })
@@ -172,6 +175,17 @@ export async function getReadiness(actor: SessionUser, examId: string) {
     { id: "window", label: "Window is in the future", ok: exam.endsAt.getTime() > now, detail: exam.endsAt.getTime() > now ? "Candidates can still take it" : "The window has already ended", blocking: true },
     { id: "duration", label: "Duration fits the window", ok: exam.durationMin * 60_000 <= exam.endsAt.getTime() - exam.startsAt.getTime(), detail: `${exam.durationMin} min`, blocking: true },
     { id: "candidates", label: "Candidates enrolled", ok: enrolled > 0, detail: enrolled ? `${enrolled} enrolled` : "You can also enroll after publishing", blocking: false },
+    ...(exam.deliveryMode === "secure"
+      ? [
+          {
+            id: "secure_time",
+            label: "Question timers fit the duration",
+            ok: paperTimeSec(items) <= exam.durationMin * 60,
+            detail: `Question timers add up to ${Math.ceil(paperTimeSec(items) / 60)} min of ${exam.durationMin} min. Over the duration, the last questions get less time.`,
+            blocking: false,
+          },
+        ]
+      : []),
     { id: "instructions", label: "Instructions written", ok: exam.instructions.trim().length > 0, detail: exam.instructions.trim() ? "Shown in the exam lobby" : "Recommended for candidates", blocking: false },
     { id: "written", label: "Manual grading needed", ok: true, detail: types.has("written") ? "Contains written questions: results need manual grading" : "Fully auto-graded", blocking: false },
   ]

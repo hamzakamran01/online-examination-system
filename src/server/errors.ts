@@ -9,6 +9,7 @@ export type ErrorCode =
   | "CONFLICT"
   | "DEADLINE_PASSED"
   | "NOT_AVAILABLE"
+  | "LOCKED"
 
 const STATUS: Record<ErrorCode, number> = {
   UNAUTHENTICATED: 401,
@@ -18,6 +19,8 @@ const STATUS: Record<ErrorCode, number> = {
   CONFLICT: 409,
   DEADLINE_PASSED: 409,
   NOT_AVAILABLE: 403,
+  /** Secure mode: the attempt is paused until the examiner releases it. */
+  LOCKED: 423,
 }
 
 /** Domain error with a user-safe message. Anything else is reported as a generic failure. */

@@ -49,7 +49,12 @@ export const eventTypeEnum = pgEnum("attempt_event_type", [
   "extension_granted",
   "submitted",
   "auto_submitted",
+  "secure_locked",
+  "secure_released",
+  "question_closed",
 ])
+/** Delivery mode (secure sequential, examiner choice per exam). */
+export const deliveryModeEnum = pgEnum("delivery_mode", ["standard", "secure"])
 export const eventSourceEnum = pgEnum("event_source", ["client", "server"])
 export const themePrefEnum = pgEnum("theme_pref", ["system", "light", "dark", "contrast"])
 export const layoutPrefEnum = pgEnum("layout_pref", ["single", "scroll"])
@@ -206,6 +211,8 @@ export const exams = pgTable(
     shuffleQuestions: boolean("shuffle_questions").notNull().default(true),
     shuffleOptions: boolean("shuffle_options").notNull().default(true),
     releaseAnswerReview: boolean("release_answer_review").notNull().default(false),
+    /** standard: free navigation and review. secure: one question at a time, per-question timers, locked full screen. */
+    deliveryMode: deliveryModeEnum("delivery_mode").notNull().default("standard"),
     publishedAt: ts("published_at"),
     closedAt: ts("closed_at"),
     resultsPublishedAt: ts("results_published_at"),
@@ -231,10 +238,13 @@ export const examQuestions = pgTable(
       .references(() => questions.id, { onDelete: "restrict" }),
     position: integer("position").notNull(),
     marks: marks("marks").notNull(),
+    /** Per-question time limit in secure mode. Null means the default for the question type. */
+    timeLimitSec: integer("time_limit_sec"),
   },
   (t) => [
     primaryKey({ columns: [t.examId, t.questionId] }),
     check("exam_questions_marks_positive", sql`${t.marks} > 0`),
+    check("exam_questions_time_limit_range", sql`${t.timeLimitSec} is null or (${t.timeLimitSec} between 10 and 3600)`),
   ]
 )
 
@@ -288,6 +298,15 @@ export const attempts = pgTable(
     lastSeenAt: ts("last_seen_at"),
     lastClientId: text("last_client_id"),
     scratchpad: text("scratchpad").notNull().default(""),
+    /** Secure mode: index of the open question and when it opened (server clock). */
+    cursor: integer("cursor").notNull().default(0),
+    itemStartedAt: ts("item_started_at"),
+    /** Secure mode lock: set when the candidate leaves full screen or the tab; cleared only by the examiner. */
+    lockedAt: ts("locked_at"),
+    lockReason: text("lock_reason"),
+    unlockCodeHash: text("unlock_code_hash"),
+    unlockCodeExpiresAt: ts("unlock_code_expires_at"),
+    unlockFailures: integer("unlock_failures").notNull().default(0),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -503,3 +522,4 @@ export type AttemptEventType = (typeof eventTypeEnum.enumValues)[number]
 export type DisputeType = (typeof disputeTypeEnum.enumValues)[number]
 export type DisputeStatus = (typeof disputeStatusEnum.enumValues)[number]
 export type VoidPolicy = (typeof voidPolicyEnum.enumValues)[number]
+export type DeliveryMode = (typeof deliveryModeEnum.enumValues)[number]

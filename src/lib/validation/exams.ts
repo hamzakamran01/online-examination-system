@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { timeLimitSchema } from "./secure"
 
 const halfMarks = (label: string) =>
   z.coerce
@@ -26,6 +27,8 @@ export const examSchema = z
     shuffleQuestions: z.boolean().default(true),
     shuffleOptions: z.boolean().default(true),
     releaseAnswerReview: z.boolean().default(false),
+    /** standard: free navigation and review. secure: one question at a time, per-question timers, locked full screen. */
+    deliveryMode: z.enum(["standard", "secure"]).default("standard"),
   })
   .superRefine((e, ctx) => {
     const start = Date.parse(e.startsAt)
@@ -42,7 +45,7 @@ export type ExamData = z.output<typeof examSchema>
 export const examQuestionsSchema = z.object({
   examId: z.uuid(),
   items: z
-    .array(z.object({ questionId: z.uuid(), marks: halfMarks("Marks") }))
+    .array(z.object({ questionId: z.uuid(), marks: halfMarks("Marks"), timeLimitSec: timeLimitSchema }))
     .max(200, "An exam can have at most 200 questions.")
     .refine((items) => new Set(items.map((i) => i.questionId)).size === items.length, "A question can only be added once."),
 })
