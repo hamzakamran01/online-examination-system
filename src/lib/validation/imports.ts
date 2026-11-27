@@ -14,7 +14,16 @@ export const importSchema = z.object({
 })
 export type Upload = z.infer<typeof importSchema>
 export type Preview = { line: number; values: string; errors: string[] }
-export type Outcome = { rows: Preview[]; imported: number; passwords: { email: string; password: string }[] }
+export type Outcome = {
+  rows: Preview[]
+  imported: number
+  created: number
+  reused: number
+  enrolled: number
+  questions: number
+  skipped: number
+  passwords: { email: string; password: string }[]
+}
 
 const candidateSchema = createUserSchema.omit({ role: true }).extend({
   password: createUserSchema.shape.password.optional(),

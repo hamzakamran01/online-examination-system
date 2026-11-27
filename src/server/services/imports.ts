@@ -1,13 +1,13 @@
-import "server-only"
-import { randomInt } from "node:crypto"
+﻿import "server-only"
+import { randomInt, randomUUID } from "node:crypto"
+import { hashPassword } from "better-auth/crypto"
 import { inArray } from "drizzle-orm"
 import { db } from "@/server/db/client"
-import { enrollments, questions, questionOptions, topics, user } from "@/server/db/schema"
+import { account as credentials, enrollments, questions, questionOptions, topics, user } from "@/server/db/schema"
 import type { SessionUser } from "@/server/auth/guards"
 import { AppError } from "@/server/errors"
 import { effectiveStatus } from "@/lib/domain/exam-status"
 import { importSchema, readRows, candidateRow, questionRow, type Upload, type Outcome } from "@/lib/validation/imports"
-import { insertUserWithPassword } from "./users"
 import { getManagedExam } from "./exams"
 import { audit } from "./audit"
 
@@ -25,17 +25,60 @@ export async function processImport(actor: SessionUser, raw: Upload, commit: boo
   } catch (e) {
     throw new AppError("VALIDATION", (e as Error).message)
   }
+  const candidateRows =
+    input.kind === "candidates"
+      ? rows.flatMap(({ value, error }) => {
+          if (error || !value || typeof value !== "object" || Array.isArray(value)) return []
+          const parsed = candidateRow(value as Record<string, unknown>)
+          return parsed.success ? [parsed.data] : []
+        })
+      : []
+  const emails = [...new Set(candidateRows.map((r) => r.email))]
+  const prepared = new Map<
+    string,
+    { id: string; name: string; email: string; secret: string; generated: boolean; hash: string }
+  >()
+  if (commit && emails.length) {
+    if (input.examId) await getManagedExam(actor, input.examId)
+    const present = await db.select({ email: user.email }).from(user).where(inArray(user.email, emails))
+    const known = new Set(present.map((r) => r.email))
+    const fresh = candidateRows.filter((r) => {
+      if (known.has(r.email)) return false
+      known.add(r.email)
+      return true
+    })
+    for (let i = 0; i < fresh.length; i += 8) {
+      await Promise.all(
+        fresh.slice(i, i + 8).map(async (r) => {
+          const secret = r.password ?? generatePassword()
+          prepared.set(r.email, {
+            id: randomUUID(),
+            name: r.name,
+            email: r.email,
+            secret,
+            generated: !r.password,
+            hash: await hashPassword(secret),
+          })
+        }),
+      )
+    }
+  }
   return db.transaction(async (tx) => {
-    const outcome: Outcome = { rows: [], imported: 0, passwords: [] }
+    const outcome: Outcome = {
+      rows: [],
+      imported: 0,
+      passwords: [],
+      created: 0,
+      reused: 0,
+      enrolled: 0,
+      questions: 0,
+      skipped: 0,
+    }
     const exam =
       input.kind === "candidates" && input.examId
         ? await getManagedExam(actor, input.examId, { write: true, tx })
         : null
     if (exam && effectiveStatus(exam) === "completed") throw new AppError("CONFLICT", "Enrollment is closed.")
-    const emails = rows.flatMap(({ value }) => {
-      const result = candidateRow(value && typeof value === "object" ? (value as Record<string, unknown>) : {})
-      return result.success ? [result.data.email] : []
-    })
     const existing =
       emails.length && input.kind === "candidates"
         ? await tx
@@ -45,6 +88,24 @@ export async function processImport(actor: SessionUser, raw: Upload, commit: boo
             .for("share")
         : []
     const accounts = new Map(existing.map((a) => [a.email, a]))
+    const fresh = [...prepared.values()].filter((r) => !accounts.has(r.email))
+    if (fresh.length) {
+      await tx
+        .insert(user)
+        .values(fresh.map(({ id, name, email }) => ({ id, name, email, role: "candidate" as const, emailVerified: true })))
+      await tx
+        .insert(credentials)
+        .values(
+          fresh.map((r) => ({
+            id: randomUUID(),
+            accountId: r.id,
+            userId: r.id,
+            providerId: "credential",
+            password: r.hash,
+          })),
+        )
+    }
+    const enrollmentRows: (typeof enrollments.$inferInsert)[] = []
     const seen = new Set<string>()
     for (const { line, value, error } of rows) {
       const row = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
@@ -67,7 +128,7 @@ export async function processImport(actor: SessionUser, raw: Upload, commit: boo
           errors.push(...parsed.error.issues.map((i) => i.path.join(".") + ": " + i.message))
           continue
         }
-        const { email, name, password } = parsed.data
+        const { email } = parsed.data
         const account = accounts.get(email)
         if (account && account.role !== "candidate") errors.push("email: This account is reserved for staff.")
         if (exam && account && !account.active) errors.push("email: Inactive candidates cannot enroll.")
@@ -75,15 +136,16 @@ export async function processImport(actor: SessionUser, raw: Upload, commit: boo
         if (errors.length) continue
         seen.add(email)
         if (!commit) continue
-        const secret = password ?? generatePassword()
-        const id =
-          account?.id ?? (await insertUserWithPassword(tx, { role: "candidate", email, name, password: secret }))
-        if (!account && !password) outcome.passwords.push({ email, password: secret })
+        const generated = prepared.get(email)
+        if (!account && !generated)
+          throw new AppError("CONFLICT", "An account changed during import. Preview the file and try again.")
+        if (account) outcome.reused++
+        else {
+          outcome.created++
+          if (generated!.generated) outcome.passwords.push({ email, password: generated!.secret })
+        }
         if (exam)
-          await tx
-            .insert(enrollments)
-            .values({ examId: exam.id, candidateId: id, enrolledBy: actor.id })
-            .onConflictDoNothing()
+          enrollmentRows.push({ examId: exam.id, candidateId: account?.id ?? generated!.id, enrolledBy: actor.id })
       } else {
         const { parsed, invalidIndex } = questionRow(row)
         if (invalidIndex) errors.push("correct: Use valid 1-based option indexes.")
@@ -117,11 +179,22 @@ export async function processImport(actor: SessionUser, raw: Upload, commit: boo
           await tx
             .insert(questionOptions)
             .values(q.options.map((o, position) => ({ ...o, position, questionId: created.id })))
+        outcome.questions++
       }
       outcome.imported++
     }
+    if (enrollmentRows.length)
+      outcome.enrolled = (
+        await tx
+          .insert(enrollments)
+          .values(enrollmentRows)
+          .onConflictDoNothing()
+          .returning({ id: enrollments.candidateId })
+      ).length
+    outcome.skipped = outcome.rows.filter((r) => r.errors.length).length
     if (commit && outcome.imported)
       await audit(tx, actor.id, "import.completed", input.kind, exam?.id ?? actor.id, { count: outcome.imported })
     return outcome
   })
 }
+

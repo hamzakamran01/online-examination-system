@@ -12,11 +12,39 @@ type ItemStats = {
   seen: number
   skipped: number
   correct: number
+  graded: number
+  groups: [boolean[], boolean[]]
   scored: number
   marks: number
   possible: number
   wrong: Map<string, number>
 }
+export function discrimination(upper: boolean[], lower: boolean[]) {
+  if (!upper.length || !lower.length) return null
+  return upper.filter(Boolean).length / upper.length - lower.filter(Boolean).length / lower.length
+}
+
+export function scoreBucket(percent: number) {
+  return Math.max(0, Math.min(9, Math.floor(percent / 10)))
+}
+
+export function median(scores: number[]) {
+  const sorted = [...scores].sort((a, b) => a - b)
+  const middle = Math.floor(sorted.length / 2)
+  return sorted.length ? (sorted[middle] + sorted[Math.floor((sorted.length - 1) / 2)]) / 2 : null
+}
+
+function qualityFlags(graded: number, correct: number, index: number | null, skip: number, wrongRate: number) {
+  if (graded < 5) return ["Not enough data"]
+  return [
+    correct < 0.2 && "Very hard or flawed",
+    correct > 0.95 && "Too easy",
+    index !== null && index < 0.1 && "Review wording",
+    skip >= 0.3 && "Frequently skipped",
+    wrongRate >= 0.4 && "Strong distractor",
+  ].filter((flag): flag is string => typeof flag === "string")
+}
+
 export async function getExamAnalytics(actor: SessionUser, examId: string) {
   const exam = await getManagedExam(actor, z.uuid().parse(examId))
   return db.transaction(
@@ -61,6 +89,14 @@ export async function getExamAnalytics(actor: SessionUser, examId: string) {
       const lookup = new Map(responses.map((a) => [a.attemptId + "/" + a.itemId, a]))
       const items = new Map<string, ItemStats>()
       const distribution = Array.from({ length: 10 }, (_, i) => ({ range: `${i * 10} to ${(i + 1) * 10}%`, count: 0 }))
+      const percentage = (r: (typeof records)[number]) => (r.max ? (100 * (r.score ?? 0)) / r.max : 0)
+      const ranked = [...records].sort((a, b) => percentage(b) - percentage(a) || a.id.localeCompare(b.id))
+      const size = Math.max(1, Math.round(ranked.length * 0.27))
+      const groups = new Map<string, 0 | 1>()
+      if (ranked.length >= 2) {
+        for (const r of ranked.slice(0, size)) groups.set(r.id, 0)
+        for (const r of ranked.slice(-size)) groups.set(r.id, 1)
+      }
       const candidates = records
         .map((r) => {
           for (const item of r.paper.items) {
@@ -69,6 +105,8 @@ export async function getExamAnalytics(actor: SessionUser, examId: string) {
               seen: 0,
               skipped: 0,
               correct: 0,
+              graded: 0,
+              groups: [[], []],
               scored: 0,
               marks: 0,
               possible: 0,
@@ -85,7 +123,13 @@ export async function getExamAnalytics(actor: SessionUser, examId: string) {
               stat.marks += score
               stat.possible += item.marks
             }
-            if (item.type !== "written" && a?.auto === item.marks) stat.correct++
+            if (item.type !== "written" || a?.manual != null) {
+              const correct = item.type === "written" ? a!.manual! >= item.marks / 2 : a?.auto === item.marks
+              stat.graded++
+              if (correct) stat.correct++
+              const group = groups.get(r.id)
+              if (group !== undefined) stat.groups[group].push(correct)
+            }
             if (response?.kind === "choice") {
               const key = r.key[item.itemId]?.correct ?? []
               for (const option of item.options)
@@ -95,17 +139,16 @@ export async function getExamAnalytics(actor: SessionUser, examId: string) {
             items.set(item.itemId, stat)
           }
           const score = r.score ?? 0
-          const percent = r.max ? (100 * score) / r.max : 0
-          distribution[Math.max(0, Math.min(9, Math.floor(percent / 10)))].count++
+          const percent = percentage(r)
+          distribution[scoreBucket(percent)].count++
           return { id: r.id, name: r.name, score, max: r.max, percent, status: r.status, grading: r.grading }
         })
         .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
-      const count = candidates.length,
-        mid = Math.floor(count / 2)
+      const count = candidates.length
       const stats = {
         count,
         mean: count ? candidates.reduce((n, r) => n + r.score, 0) / count : null,
-        median: count ? (candidates[mid].score + candidates[Math.floor((count - 1) / 2)].score) / 2 : null,
+        median: median(candidates.map((r) => r.score)),
         high: candidates[0]?.score ?? null,
         low: candidates.at(-1)?.score ?? null,
         passRate:
@@ -114,20 +157,33 @@ export async function getExamAnalytics(actor: SessionUser, examId: string) {
             : null,
       }
       const questions = Array.from(items.values(), (s) => {
-        const objective = s.item.type !== "written"
-        const facility = objective ? s.correct / s.seen : s.possible ? s.marks / s.possible : null
+        const facility = s.graded ? s.correct / s.graded : null
+        const index = discrimination(...s.groups)
+        const wrong = Array.from(s.wrong).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]
         return {
           id: s.item.itemId,
           stem: s.item.stem,
           type: s.item.type,
           seen: s.seen,
           skip: (100 * s.skipped) / s.seen,
-          correct: objective ? (100 * s.correct) / s.seen : null,
+          correct: facility === null ? null : facility * 100,
+          index,
+          discriminationLabel:
+            index === null
+              ? "Unavailable"
+              : index < 0
+                ? "Review: stronger candidates did worse"
+                : index < 0.1
+                  ? "Review"
+                  : index < 0.3
+                    ? "Fair"
+                    : "Good",
+          flags: qualityFlags(s.graded, facility ?? 0, index, s.skipped / s.seen, (wrong?.[1] ?? 0) / s.seen),
           avg: s.scored ? s.marks / s.scored : null,
           max: s.scored ? s.possible / s.scored : s.item.marks,
           authored: s.item.difficulty,
           observed: facility === null ? "Pending" : facility > 0.7 ? "Easy" : facility < 0.3 ? "Hard" : "Moderate",
-          wrong: Array.from(s.wrong).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ?? null,
+          wrong: wrong?.[0] ?? null,
         }
       })
       return {
