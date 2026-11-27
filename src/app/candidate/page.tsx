@@ -75,17 +75,7 @@ function Focus({ e }: { e: Item }) {
               <Countdown to={a.opensAt.toISOString()} className="font-mono text-2xl font-semibold tabular-nums" />
             </div>
           )}
-          {a.kind === "resume" ? (
-            <Link href={`/attempt/${a.attemptId}`} className={buttonVariants({ size: "lg" })}>
-              <PlayCircle />
-              Resume exam
-            </Link>
-          ) : a.kind === "open" ? (
-            <Link href={`/candidate/exams/${e.id}`} className={buttonVariants({ size: "lg" })}>
-              Read instructions and start
-              <ArrowRight />
-            </Link>
-          ) : (
+          {a.kind === "upcoming" && (
             <Link href={`/candidate/exams/${e.id}`} className={buttonVariants({ variant: "outline", size: "lg" })}>
               Read instructions
             </Link>
