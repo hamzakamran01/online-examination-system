@@ -16,6 +16,7 @@ import { toast } from "sonner"
 import { HEARTBEAT_MS, MIN_TAB_AWAY_MS } from "@/lib/domain/monitoring"
 import type { ClientSignal } from "@/lib/validation/monitoring"
 import { getClientId } from "./sync-engine"
+import { ackPresence, attachPresenceLedger, snapshotPresence } from "./presence-ledger"
 
 export type Announcement = { id: string; body: string; createdAt: string }
 
@@ -86,11 +87,12 @@ export function useAttemptRuntime({
     inflight.current = true
     const sending = queue.current
     const t0 = performance.now()
+    const { presence, taken } = snapshotPresence()
     try {
       const res = await fetch(`/api/attempts/${attemptId}/heartbeat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId: getClientId(), signals: sending }),
+        body: JSON.stringify({ clientId: getClientId(), signals: sending, presence }),
         cache: "no-store",
       })
       if (res.status === 401 || res.status === 404) {
@@ -106,6 +108,7 @@ export function useAttemptRuntime({
         extensions: { id: string; seconds: number }[]
       }
       setServerReachable(true)
+      ackPresence(taken)
       // Delivered: drop exactly what was sent, keep anything queued meanwhile.
       queue.current = queue.current.slice(sending.length)
       write(keys.signals, queue.current)
@@ -136,6 +139,9 @@ export function useAttemptRuntime({
       inflight.current = false
     }
   }, [attemptId, keys])
+
+  // Started before the listeners below so a hidden or offline period is never missed.
+  React.useEffect(() => attachPresenceLedger(), [])
 
   React.useEffect(() => {
     queue.current = read<ClientSignal[]>(keys.signals, [])

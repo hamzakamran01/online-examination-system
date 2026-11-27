@@ -10,6 +10,7 @@
  * retries and out-of-order deliveries are harmless.
  */
 import type { AnswerResponse } from "@/lib/domain/paper"
+import { ackPresence, snapshotPresence } from "./presence-ledger"
 
 export type Entry = { response: AnswerResponse | null; flagged: boolean; seq: number }
 export type SyncState = "saved" | "saving" | "offline" | "retrying" | "error"
@@ -142,16 +143,18 @@ export class SyncEngine {
     this.inflight = true
     this.setState(this.failures ? "retrying" : "saving")
     const sentAt = performance.now()
+    const { presence, taken } = snapshotPresence()
     try {
       const res = await fetch(`/api/attempts/${this.attemptId}/answers`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId: getClientId(), answers: batch }),
+        body: JSON.stringify({ clientId: getClientId(), answers: batch, presence }),
         cache: "no-store",
       })
       const body = await res.json().catch(() => null)
       this.inflight = false
       if (res.ok) {
+        ackPresence(taken)
         for (const a of body.acked as { itemId: string; seq: number }[])
           if (this.pending[a.itemId]?.seq === a.seq) delete this.pending[a.itemId]
         store.set(this.key("journal"), this.pending)

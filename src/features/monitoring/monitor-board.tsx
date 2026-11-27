@@ -13,6 +13,7 @@ import {
   Megaphone,
   RefreshCw,
   Send,
+  ServerCrash,
   ShieldAlert,
   TimerReset,
   WifiOff,
@@ -37,12 +38,15 @@ import {
   MONITOR_POLL_MS,
   SIGNAL_DISCLAIMER,
   SIGNAL_LABEL,
+  GAP_CAUSE_LABEL,
   suggestExtensionSec,
+  type GapCause,
   type LiveState,
 } from "@/lib/domain/monitoring"
 import { announcementSchema, extensionSchema, type AnnouncementInput, type ExtensionInput } from "@/lib/validation/monitoring"
 import type { MonitorRow, MonitorView, TimelineView } from "@/server/services/monitoring"
 import { grantExtensionAction, postAnnouncementAction } from "./actions"
+import { IncidentDialog } from "./incident-dialog"
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url, { cache: "no-store" })
@@ -121,6 +125,7 @@ export function MonitorBoard({ examId }: { examId: string }) {
   const [filter, setFilter] = React.useState<"all" | LiveState>("all")
   const [timelineFor, setTimelineFor] = React.useState<MonitorRow | null>(null)
   const [extendFor, setExtendFor] = React.useState<MonitorRow | null>(null)
+  const [incidentOpen, setIncidentOpen] = React.useState(false)
 
   if (q.isPending)
     return (
@@ -169,8 +174,39 @@ export function MonitorBoard({ examId }: { examId: string }) {
             </>
           )}
         </p>
-        <p className="text-xs text-muted-foreground">Server time {new Date(now).toLocaleTimeString()}</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-xs text-muted-foreground">Server time {new Date(now).toLocaleTimeString()}</p>
+          {v.canAct && live && (
+            <Button size="sm" variant="outline" onClick={() => setIncidentOpen(true)}>
+              <ServerCrash />
+              Declare an outage
+            </Button>
+          )}
+        </div>
       </div>
+
+      {v.incidents.length > 0 && (
+        <Panel className="p-4">
+          <p className="mb-2 flex items-center gap-2 text-sm font-medium">
+            <ServerCrash className="size-4 text-warning-text" aria-hidden />
+            Declared outages
+          </p>
+          <ul className="space-y-1.5 text-sm">
+            {v.incidents.map((i) => (
+              <li key={i.id} className="flex flex-wrap gap-x-2">
+                <span className="font-medium tabular-nums">
+                  {new Date(i.windowFrom).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} to{" "}
+                  {new Date(i.windowTo).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
+                <span className="text-muted-foreground">
+                  {i.affected} candidate{i.affected === 1 ? "" : "s"} compensated, {secs(i.totalSec)} in total, by {i.declaredBy ?? "an examiner"}.
+                </span>
+                <span className="w-full text-xs text-muted-foreground">Reason: {i.reason}</span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {(
@@ -267,6 +303,7 @@ export function MonitorBoard({ examId }: { examId: string }) {
 
       <TimelineSheet examId={examId} row={timelineFor} onClose={() => setTimelineFor(null)} />
       <ExtendDialog examId={examId} row={extendFor} now={now} onClose={() => setExtendFor(null)} />
+      <IncidentDialog examId={examId} open={incidentOpen} onClose={() => setIncidentOpen(false)} serverNow={now} examStartsAt={v.exam.startsAt} />
     </div>
   )
 }
@@ -316,6 +353,11 @@ function CandidateRow({ r, now, canAct, onTimeline, onExtend }: { r: MonitorRow;
           <span className="text-muted-foreground">-</span>
         )}
         {r.gapSec > 0 && <p className="text-xs text-muted-foreground">Outages: {secs(r.gapSec)}</p>}
+        {r.backgroundSec > 0 && (
+          <p className="text-xs text-muted-foreground" title="The tab was in the background, so the browser slowed its timers. Not counted as an outage.">
+            Background tab: {secs(r.backgroundSec)}
+          </p>
+        )}
       </TableCell>
       <TableCell>
         {r.signals > 0 ? (
@@ -416,11 +458,12 @@ function AnnouncementsPanel({ examId, view }: { examId: string; view: MonitorVie
 }
 
 function eventDetail(e: TimelineView["events"][number]) {
-  const d = e.detail as { durationMs?: number; gapSec?: number; seconds?: number; lateByMs?: number; reason?: string }
+  const d = e.detail as { durationMs?: number; gapSec?: number; seconds?: number; lateByMs?: number; reason?: string; cause?: GapCause; incidentId?: string }
   if (e.type === "tab_hidden" && d.durationMs) return `Away for ${secs(Math.round(d.durationMs / 1000))}`
   if (e.type === "offline" && d.durationMs) return `Offline for ${secs(Math.round(d.durationMs / 1000))}`
-  if (e.type === "connection_gap" && d.gapSec) return `Server heard nothing for ${secs(d.gapSec)} (measured by the server)`
-  if (e.type === "extension_granted" && d.seconds) return `+${secs(d.seconds)}`
+  if (e.type === "connection_gap" && d.gapSec)
+    return `Server heard nothing for ${secs(d.gapSec)} (measured by the server). Likely cause: ${GAP_CAUSE_LABEL[d.cause ?? "no_contact"].toLowerCase()}.`
+  if (e.type === "extension_granted" && d.seconds) return `+${secs(d.seconds)}${d.incidentId ? " for a declared outage" : ""}`
   if (e.type === "late_save_rejected" && d.lateByMs) return `${secs(Math.round(d.lateByMs / 1000))} after the deadline`
   return null
 }
@@ -463,6 +506,7 @@ function TimelineSheet({ examId, row, onClose }: { examId: string; row: MonitorR
                     {q.data.extensions.map((x) => (
                       <li key={x.id}>
                         <span className="font-medium">+{secs(x.seconds)}</span> by {x.grantedBy ?? "an examiner"}, {fmtDateTime(x.createdAt)}
+                        {x.incidentId && <Badge variant="outline" className="ml-1.5">Declared outage</Badge>}
                         <p className="text-xs text-muted-foreground">Reason: {x.reason}</p>
                       </li>
                     ))}
@@ -471,7 +515,7 @@ function TimelineSheet({ examId, row, onClose }: { examId: string; row: MonitorR
               )}
               <ol className="relative space-y-3 border-l pl-5">
                 {q.data.events.map((e) => {
-                  const signal = SIGNAL_TYPES.has(e.type)
+                  const signal = SIGNAL_TYPES.has(e.type) && !(e.type === "connection_gap" && (e.detail as { cause?: string }).cause === "background_tab")
                   const detail = eventDetail(e)
                   return (
                     <li key={e.id} className="relative">

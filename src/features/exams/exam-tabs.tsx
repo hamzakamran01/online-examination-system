@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart3, ClipboardCheck, ListOrdered, PenLine, Radio, Settings2, Users } from "lucide-react"
+import { BarChart3, ClipboardCheck, Gavel, ListOrdered, PenLine, Radio, Settings2, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export function ExamTabs({ examId, live = false }: { examId: string; live?: boolean }) {
@@ -15,6 +15,7 @@ export function ExamTabs({ examId, live = false }: { examId: string; live?: bool
     { href: `${base}/review`, label: "Review and publish", icon: ClipboardCheck },
     { href: `${base}/monitor`, label: "Live monitor", icon: Radio },
     { href: `${base}/results`, label: "Grading and results", icon: PenLine },
+    { href: `${base}/disputes`, label: "Disputes", icon: Gavel },
     { href: `${base}/analytics`, label: "Analytics", icon: BarChart3 },
   ]
   return (

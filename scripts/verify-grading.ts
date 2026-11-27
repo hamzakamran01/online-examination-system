@@ -1,16 +1,16 @@
 /**
  * Grading and results integrity checks against a disposable database branch.
  * Run: pnpm verify:grading   (uses .env.test; never the demo database)
- * Stateful: run once per fresh test branch. Needs one finalized attempt with a written answer (the Walkthrough Quiz from the browser walkthrough).
+ * Self-contained and repeatable: creates its own exam and attempt, runs every check, then deletes the exam (cascade).
  */
-import { and, eq } from "drizzle-orm"
+import { and, eq, isNull } from "drizzle-orm"
 import { ZodError } from "zod"
 import { db } from "@/server/db/client"
-import { attempts, exams, user } from "@/server/db/schema"
+import { attempts, enrollments, examQuestions, exams, questions, user } from "@/server/db/schema"
 import type { SessionUser } from "@/server/auth/guards"
 import { getCandidateResult, getGradingAttempt, getResultsOverview, gradeAnswer, publishResults } from "@/server/services/grading"
 import { closeExam } from "@/server/services/exams"
-import { finalizeAllForExam } from "@/server/services/attempts"
+import { finalizeAllForExam, saveAnswers, startAttempt, submitAttempt } from "@/server/services/attempts"
 import { scoreItem } from "@/server/domain/grading"
 import type { PaperItem } from "@/lib/domain/paper"
 
@@ -52,17 +52,68 @@ function pureMarkingRules() {
   check("written returns null (manual)", scoreItem({ ...single, type: "written" }, { correct: [] }, { kind: "text", text: "x" }) === null)
 }
 
+let fixtureExamId: string | null = null
+
 async function main() {
-  if (!process.env.DATABASE_URL?.includes("ep-")) throw new Error("DATABASE_URL missing")
+  const url = process.env.DATABASE_URL ?? ""
+  if (!url.includes("ep-") || url.includes("ep-old-flower")) throw new Error("Refusing to run: an isolated test database is required.")
   pureMarkingRules()
 
   const examiner = await asUser("examiner@examvault.test")
   const examiner2 = await asUser("examiner2@examvault.test")
   const ayesha = await asUser("ayesha@examvault.test")
   const sara = await asUser("sara@examvault.test")
-  const [exam] = await db.select().from(exams).where(eq(exams.title, "Walkthrough Quiz"))
-  if (!exam) throw new Error("Run the browser walkthrough first (Walkthrough Quiz missing)")
-  const [a] = await db.select().from(attempts).where(and(eq(attempts.examId, exam.id), eq(attempts.candidateId, ayesha.id), eq(attempts.isSandbox, false)))
+  // Fixture: an ongoing exam with one objective and one written question, one submitted attempt.
+  const pick = async (type: "single" | "written") => {
+    const [q] = await db
+      .select({ id: questions.id })
+      .from(questions)
+      .where(and(eq(questions.ownerId, examiner.id), eq(questions.type, type), isNull(questions.archivedAt)))
+      .limit(1)
+    if (!q) throw new Error(`Examiner has no ${type} question in the test branch`)
+    return q.id
+  }
+  const now = Date.now()
+  const [exam] = await db
+    .insert(exams)
+    .values({
+      ownerId: examiner.id,
+      title: `Grading check ${new Date(now).toISOString()}`,
+      startsAt: new Date(now - 60_000),
+      endsAt: new Date(now + 3_600_000),
+      durationMin: 30,
+      totalMarks: 6,
+      status: "published",
+      publishedAt: new Date(now - 60_000),
+      releaseAnswerReview: false,
+      shuffleQuestions: false,
+      shuffleOptions: false,
+    })
+    .returning()
+  fixtureExamId = exam.id
+  await db.insert(examQuestions).values([
+    { examId: exam.id, questionId: await pick("single"), position: 0, marks: 2 },
+    { examId: exam.id, questionId: await pick("written"), position: 1, marks: 4 },
+  ])
+  await db.insert(enrollments).values({ examId: exam.id, candidateId: ayesha.id, enrolledBy: examiner.id })
+  const { attemptId } = await startAttempt(ayesha, exam.id)
+  const [started] = await db.select().from(attempts).where(eq(attempts.id, attemptId))
+  const single = started.paper.items.find((i) => i.type === "single")!
+  const writtenItem = started.paper.items.find((i) => i.type === "written")!
+  await saveAnswers(ayesha, attemptId, {
+    clientId: "grading-check-01",
+    answers: [
+      { itemId: single.itemId, response: { kind: "choice", selected: [single.options[0].id] }, flagged: false, seq: 1 },
+      {
+        itemId: writtenItem.itemId,
+        response: { kind: "text", text: "Resolution walks from the root to the authoritative server; resolvers cache answers by TTL." },
+        flagged: false,
+        seq: 2,
+      },
+    ],
+  })
+  await submitAttempt(ayesha, attemptId)
+  const [a] = await db.select().from(attempts).where(eq(attempts.id, attemptId))
   const written = a.paper.items.find((i) => i.type === "written")!
 
   // Access control.
@@ -127,10 +178,14 @@ async function main() {
   check("regrade reason in history", hist.length === 2 && hist[0].reason?.includes("caching") === true)
 
   console.log(failures ? `\n${failures} check(s) FAILED` : "\nAll checks passed")
-  process.exit(failures ? 1 : 0)
 }
 
-main().catch((e) => {
-  console.error(e)
-  process.exit(1)
-})
+main()
+  .catch((e) => {
+    console.error(e)
+    failures++
+  })
+  .finally(async () => {
+    if (fixtureExamId) await db.delete(exams).where(eq(exams.id, fixtureExamId))
+    process.exit(failures ? 1 : 0)
+  })

@@ -4,6 +4,8 @@ import { db } from "@/server/db/client"
 import { answers, attempts, exams } from "@/server/db/schema"
 import type { SessionUser } from "@/server/auth/guards"
 import { AppError } from "@/server/errors"
+import { itemOutcome, type VoidRule } from "@/lib/domain/scoring"
+import { itemVoids } from "@/server/db/schema"
 
 const r1 = (n: number) => Math.round(n * 10) / 10
 
@@ -25,6 +27,9 @@ export async function getCandidateTranscript(actor: SessionUser) {
 
   const publishedIds = rows.filter((r) => r.exam.resultsPublishedAt).map((r) => r.attempt.id)
   const ans = publishedIds.length ? await db.select().from(answers).where(inArray(answers.attemptId, publishedIds)) : []
+  const examIds = [...new Set(rows.filter((r) => r.exam.resultsPublishedAt).map((r) => r.exam.id))]
+  const voidRows = examIds.length ? await db.select().from(itemVoids).where(inArray(itemVoids.examId, examIds)) : []
+  const voids = new Map<string, VoidRule>(voidRows.map((v) => [`${v.examId}/${v.itemId}`, v.policy]))
   const byAttempt = new Map<string, Map<string, (typeof ans)[number]>>()
   for (const a of ans) {
     if (!byAttempt.has(a.attemptId)) byAttempt.set(a.attemptId, new Map())
@@ -48,10 +53,11 @@ export async function getCandidateTranscript(actor: SessionUser) {
     const map = byAttempt.get(attempt.id) ?? new Map()
     const cells: Cell[] = attempt.paper.items.map((item, index) => {
       const a = map.get(item.itemId)
-      const marks = item.type === "written" ? (a?.manualScore ?? 0) : (a?.autoScore ?? 0)
+      const o = itemOutcome(item, a, voids.get(`${exam.id}/${item.itemId}`))
+      const marks = o.score ?? 0
       const resp = a?.response
       const answered = !!resp && (resp.kind === "choice" ? resp.selected.length > 0 : resp.text.trim().length > 0)
-      return { index, type: item.type, topic: item.topic, marks, max: item.marks, answered }
+      return { index, type: item.type, topic: item.topic, marks, max: o.max, answered }
     })
     const group = <K extends string>(key: (c: Cell) => K) => {
       const m = new Map<K, { earned: number; max: number; n: number }>()

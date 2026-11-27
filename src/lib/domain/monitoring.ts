@@ -47,6 +47,36 @@ export function measureGapSec(lastSeenAt: Date | null, now: Date): number | null
   return ms > GAP_THRESHOLD_MS ? Math.round(ms / 1000) : null
 }
 
+/**
+ * Why the server heard nothing (I-5.3). Browsers throttle timers in background tabs
+ * (Chrome to about one tick a minute), so a hidden tab alone can look like an outage.
+ * - `background_tab`: the tab was hidden for (almost) the whole silence. Not an outage.
+ * - `device_offline`: the device itself reported no network for a meaningful part of it.
+ * - `no_contact`: the tab was visible and the device online, yet nothing reached the
+ *   server: a network path or server problem. The strongest evidence for extra time.
+ */
+export type GapCause = "background_tab" | "device_offline" | "no_contact"
+
+export const GAP_CAUSE_LABEL: Record<GapCause, string> = {
+  background_tab: "Tab in background (browser slowed its timers)",
+  device_offline: "Device reported no network",
+  no_contact: "Visible and online, but nothing reached the server",
+}
+
+/** Gaps of these causes are outages worth compensating; background tabs are not. */
+export const OUTAGE_CAUSES: readonly GapCause[] = ["device_offline", "no_contact"]
+
+export function classifyGap(gapMs: number, presence: { hiddenMs: number; offlineMs: number } | null | undefined): GapCause {
+  if (!presence) return "no_contact"
+  const hidden = Math.min(presence.hiddenMs, gapMs)
+  const offline = Math.min(presence.offlineMs, gapMs)
+  // A real loss of network wins: the candidate could not have reached us even if visible.
+  if (offline >= GAP_THRESHOLD_MS || offline >= gapMs / 2) return "device_offline"
+  // Visible for less than one gap threshold: the silence is explained by throttled timers.
+  if (gapMs - hidden < GAP_THRESHOLD_MS) return "background_tab"
+  return "no_contact"
+}
+
 /** Suggested extension: the measured outage not yet compensated, in whole minutes, within the cap. */
 export function suggestExtensionSec(measuredGapSec: number, alreadyGrantedSec: number): number {
   const room = Math.max(0, EXTENSION_CAP_SEC - alreadyGrantedSec)

@@ -6,6 +6,8 @@ import { attempts, answers, user } from "@/server/db/schema"
 import type { SessionUser } from "@/server/auth/guards"
 import { getManagedExam } from "./exams"
 import type { PaperItem } from "@/lib/domain/paper"
+import { itemOutcome, type VoidRule } from "@/lib/domain/scoring"
+import { loadVoids } from "./attempts"
 
 type ItemStats = {
   item: PaperItem
@@ -18,6 +20,7 @@ type ItemStats = {
   marks: number
   possible: number
   wrong: Map<string, number>
+  voided: VoidRule | null
 }
 export function discrimination(upper: boolean[], lower: boolean[]) {
   if (!upper.length || !lower.length) return null
@@ -86,6 +89,8 @@ export async function getExamAnalytics(actor: SessionUser, examId: string) {
               ),
             )
         : []
+      // Voided questions (I-5.4) stay listed but are not scored, so facility and discrimination stay honest.
+      const voids = await loadVoids(tx, exam.id)
       const lookup = new Map(responses.map((a) => [a.attemptId + "/" + a.itemId, a]))
       const items = new Map<string, ItemStats>()
       const distribution = Array.from({ length: 10 }, (_, i) => ({ range: `${i * 10} to ${(i + 1) * 10}%`, count: 0 }))
@@ -111,20 +116,27 @@ export async function getExamAnalytics(actor: SessionUser, examId: string) {
               marks: 0,
               possible: 0,
               wrong: new Map(),
+              voided: voids.get(item.itemId) ?? null,
             }
             stat.seen++
             const a = lookup.get(r.id + "/" + item.itemId)
             const response = a?.response
             const empty = response?.kind === "text" ? !response.text.trim() : !response?.selected.length
             if (empty) stat.skipped++
-            const score = item.type === "written" ? (a?.manual ?? (empty ? 0 : null)) : (a?.auto ?? 0)
+            if (stat.voided) {
+              items.set(item.itemId, stat)
+              continue
+            }
+            // Shared scoring rule: objective overrides from upheld disputes count like any other mark.
+            const outcome = itemOutcome(item, a ? { autoScore: a.auto, manualScore: a.manual } : undefined, null)
+            const score = item.type === "written" ? (a?.manual ?? (empty ? 0 : null)) : (outcome.score ?? 0)
             if (score !== null) {
               stat.scored++
               stat.marks += score
               stat.possible += item.marks
             }
             if (item.type !== "written" || a?.manual != null) {
-              const correct = item.type === "written" ? a!.manual! >= item.marks / 2 : a?.auto === item.marks
+              const correct = item.type === "written" ? a!.manual! >= item.marks / 2 : score === item.marks
               stat.graded++
               if (correct) stat.correct++
               const group = groups.get(r.id)
@@ -184,6 +196,7 @@ export async function getExamAnalytics(actor: SessionUser, examId: string) {
           authored: s.item.difficulty,
           observed: facility === null ? "Pending" : facility > 0.7 ? "Easy" : facility < 0.3 ? "Hard" : "Moderate",
           wrong: wrong?.[0] ?? null,
+          voided: s.voided,
         }
       })
       return {

@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { TypeBadge } from "@/components/shell/status"
 import { WrittenGrader } from "@/features/grading/written-grader"
+import { EvidencePanel } from "@/features/grading/evidence-panel"
 
 export default async function GradeAttemptPage({ params }: PageProps<"/examiner/exams/[examId]/results/[attemptId]">) {
   const actor = await requirePageRole("examiner")
@@ -36,11 +37,10 @@ export default async function GradeAttemptPage({ params }: PageProps<"/examiner/
             This candidate is still writing. You can grade once the attempt is submitted.
           </p>
         )}
-        {g.items.map(({ item, index, response, correct, rubric, autoScore, manualScore, feedback, history, needsGrading }) => {
+        {g.items.map(({ item, index, response, correct, rubric, manualScore, feedback, history, needsGrading, awarded, voided, overridden }) => {
           const selected = response?.kind === "choice" ? response.selected : []
           const text = response?.kind === "text" ? response.text : ""
           const unanswered = item.type === "written" ? !text.trim() : selected.length === 0
-          const awarded = item.type === "written" ? (manualScore ?? (final && unanswered ? 0 : null)) : (autoScore ?? (final ? 0 : null))
           return (
             <Panel key={item.itemId} className={cn("p-5", needsGrading && "border-warning/50")} aria-labelledby={`q-${item.itemId}`}>
               <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
@@ -53,9 +53,14 @@ export default async function GradeAttemptPage({ params }: PageProps<"/examiner/
                     Not answered
                   </Badge>
                 )}
+                {voided && (
+                  <Badge variant="warning">{voided === "exclude" ? "Voided: removed from every paper" : "Voided: full marks for everyone"}</Badge>
+                )}
+                {overridden && <Badge variant="outline">Mark changed after a dispute</Badge>}
                 <span className="ml-auto font-medium tabular-nums">
-                  {awarded === null ? <span className="text-warning-text">Not graded</span> : fmtMarks(awarded)} / {fmtMarks(item.marks)}
-                  {item.type !== "written" && <span className="ml-1 text-xs font-normal text-muted-foreground">(auto)</span>}
+                  {awarded === null ? <span className="text-warning-text">{final ? "Not graded" : "Writing"}</span> : fmtMarks(awarded)} /{" "}
+                  {fmtMarks(voided === "exclude" ? 0 : item.marks)}
+                  {item.type !== "written" && !overridden && !voided && <span className="ml-1 text-xs font-normal text-muted-foreground">(auto)</span>}
                 </span>
               </div>
               <p id={`q-${item.itemId}`} className="mb-4 font-medium whitespace-pre-wrap">
@@ -73,7 +78,7 @@ export default async function GradeAttemptPage({ params }: PageProps<"/examiner/
                       <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{rubric}</p>
                     </details>
                   )}
-                  {final && (
+                  {final && !voided && (
                     <WrittenGrader
                       examId={examId}
                       attemptId={attemptId}
@@ -181,6 +186,7 @@ export default async function GradeAttemptPage({ params }: PageProps<"/examiner/
             </Link>
           )}
         </Panel>
+        <EvidencePanel evidence={g.evidence} />
         {published && (
           <p className="rounded-lg border border-warning/30 bg-warning-soft p-3 text-xs text-warning-text">
             Results are published. Any change you save is a regrade: it needs a reason, is recorded in the audit log, and replaces previously issued reports.

@@ -9,7 +9,10 @@ import type { AnswerResponse, PaperItem } from "@/lib/domain/paper"
 import { gradeAnswerSchema, type GradeAnswerInput } from "@/lib/validation/grading"
 import { round2 } from "@/lib/format"
 import { getManagedExam } from "./exams"
-import { finalizeExpiredForExam, recalcAttempt } from "./attempts"
+import { finalizeExpiredForExam, loadVoids, recalcAttempt } from "./attempts"
+import { supersedeChangedReports } from "./reports"
+import { getAttemptEvidence } from "./monitoring"
+import { itemOutcome, type VoidRule } from "@/lib/domain/scoring"
 import { audit } from "./audit"
 
 
@@ -88,6 +91,10 @@ export type GradingItem = {
   manualScore: number | null
   feedback: string | null
   needsGrading: boolean
+  /** Awarded marks under the shared scoring rules (voids and overrides applied). */
+  awarded: number | null
+  voided: VoidRule | null
+  overridden: boolean
   history: { at: string; by: string | null; from: number | null; to: number; reason: string | null }[]
 }
 
@@ -100,7 +107,11 @@ export async function getGradingAttempt(actor: SessionUser, examId: string, atte
     .innerJoin(user, eq(user.id, attempts.candidateId))
     .where(and(eq(attempts.id, attemptId), eq(attempts.examId, exam.id), eq(attempts.isSandbox, false)))
   if (!a) throw notFound("Attempt")
-  const rows = await db.select().from(answers).where(eq(answers.attemptId, attemptId))
+  const [rows, voids, evidence] = await Promise.all([
+    db.select().from(answers).where(eq(answers.attemptId, attemptId)),
+    loadVoids(db, exam.id),
+    getAttemptEvidence(attemptId),
+  ])
   const byItem = new Map(rows.map((r) => [r.itemId, r]))
   const history = await db
     .select({ entityId: auditLog.entityId, meta: auditLog.meta, createdAt: auditLog.createdAt, by: user.name })
@@ -113,6 +124,8 @@ export async function getGradingAttempt(actor: SessionUser, examId: string, atte
     const r = byItem.get(item.itemId)
     const response = r?.response ?? null
     const written = item.type === "written"
+    const final = a.attempt.status !== "in_progress"
+    const outcome = itemOutcome(item, r, voids.get(item.itemId))
     return {
       item,
       index,
@@ -122,7 +135,10 @@ export async function getGradingAttempt(actor: SessionUser, examId: string, atte
       autoScore: r?.autoScore ?? null,
       manualScore: r?.manualScore ?? null,
       feedback: r?.feedback ?? null,
-      needsGrading: written && a.attempt.status !== "in_progress" && !!r && r.manualScore === null,
+      needsGrading: written && final && !!r && r.manualScore === null && !outcome.voided,
+      awarded: final ? outcome.score : null,
+      voided: outcome.voided,
+      overridden: outcome.overridden,
       history: history
         .filter((h) => h.entityId === answerKeyId(attemptId, item.itemId))
         .map((h) => ({
@@ -158,6 +174,7 @@ export async function getGradingAttempt(actor: SessionUser, examId: string, atte
       gradingStatus: a.attempt.gradingStatus,
     },
     items,
+    evidence,
     nextUngradedId: neighbours?.next ?? null,
   }
 }
@@ -179,6 +196,8 @@ export async function gradeAnswer(actor: SessionUser, raw: GradeAnswerInput) {
     const item = a.paper.items.find((i) => i.itemId === input.itemId)
     if (!item) throw notFound("Question")
     if (item.type !== "written") throw new AppError("VALIDATION", "Objective questions are graded automatically from the marking scheme.")
+    if ((await loadVoids(tx, a.examId)).has(item.itemId))
+      throw new AppError("CONFLICT", "This question is voided for every candidate, so it is not graded.")
     if (input.marks > item.marks)
       throw new AppError("VALIDATION", `Marks cannot exceed ${item.marks} for this question.`, { marks: `Maximum is ${item.marks}.` })
     const published = Boolean(exam.resultsPublishedAt)
@@ -209,6 +228,7 @@ export async function gradeAnswer(actor: SessionUser, raw: GradeAnswerInput) {
       })
     }
     await recalcAttempt(tx, a)
+    if (published) await supersedeChangedReports(tx, [a.id])
     await audit(tx, actor.id, published ? "grade.regraded" : "grade.set", "answer", answerKeyId(a.id, item.itemId), {
       examId: exam.id,
       from: existing?.manualScore ?? null,
@@ -260,7 +280,7 @@ export async function getCandidateResult(actor: SessionUser, attemptId: string) 
     .innerJoin(exams, eq(exams.id, attempts.examId))
     .where(and(eq(attempts.id, attemptId), eq(attempts.candidateId, actor.id), eq(attempts.isSandbox, false), ne(attempts.status, "in_progress")))
   if (!a) throw notFound("Result")
-  const rows = await db.select().from(answers).where(eq(answers.attemptId, attemptId))
+  const [rows, voids] = await Promise.all([db.select().from(answers).where(eq(answers.attemptId, attemptId)), loadVoids(db, a.exam.id)])
   const byItem = new Map(rows.map((r) => [r.itemId, r]))
   const published = Boolean(a.exam.resultsPublishedAt)
   const reveal = published && a.exam.releaseAnswerReview
@@ -276,9 +296,17 @@ export async function getCandidateResult(actor: SessionUser, attemptId: string) 
       options: item.options,
       response: r?.response ?? null,
     }
-    if (!published) return { ...base, marks: null, feedback: null, correct: null }
-    const marks = item.type === "written" ? (r?.manualScore ?? 0) : (r?.autoScore ?? 0)
-    return { ...base, marks, feedback: r?.feedback ?? null, correct: reveal ? (a.attempt.answerKey[item.itemId]?.correct ?? []) : null }
+    if (!published) return { ...base, marks: null, feedback: null, correct: null, voided: null, overridden: false }
+    const o = itemOutcome(item, r, voids.get(item.itemId))
+    return {
+      ...base,
+      marks: o.score ?? 0,
+      maxMarks: o.max,
+      voided: o.voided,
+      overridden: o.overridden,
+      feedback: r?.feedback ?? null,
+      correct: reveal ? (a.attempt.answerKey[item.itemId]?.correct ?? []) : null,
+    }
   })
 
   const score = published ? (a.attempt.scoreTotal ?? 0) : null

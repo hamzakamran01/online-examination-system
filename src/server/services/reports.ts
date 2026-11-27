@@ -1,11 +1,13 @@
 import "server-only"
 import { randomBytes } from "node:crypto"
-import { and, eq, isNull, ne } from "drizzle-orm"
-import { db } from "@/server/db/client"
+import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm"
+import { db, type Tx } from "@/server/db/client"
 import { attempts, answers, exams, user, resultReports } from "@/server/db/schema"
 import type { SessionUser } from "@/server/auth/guards"
 import { notFound } from "@/server/errors"
 import { getManagedExam } from "./exams"
+import { loadVoids } from "./attempts"
+import { itemOutcome } from "@/lib/domain/scoring"
 export async function getResultReport(actor: SessionUser, attemptId: string) {
   return db.transaction(async (tx) => {
     const [a] = await tx
@@ -70,7 +72,8 @@ export async function getResultReport(actor: SessionUser, attemptId: string) {
       .select({ itemId: answers.itemId, auto: answers.autoScore, manual: answers.manualScore })
       .from(answers)
       .where(eq(answers.attemptId, a.id))
-    const scores = new Map(rows.map((r) => [r.itemId, r]))
+    const scores = new Map(rows.map((r) => [r.itemId, { autoScore: r.auto, manualScore: r.manual }]))
+    const voids = await loadVoids(tx, a.examId)
     return {
       name: a.name,
       title: a.title,
@@ -82,15 +85,31 @@ export async function getResultReport(actor: SessionUser, attemptId: string) {
       code: report.code,
       issued: report.issuedAt,
       items: a.paper.items.map((item) => {
-        const answer = scores.get(item.itemId)
-        return {
-          type: item.type,
-          max: item.marks,
-          score:
-            item.type === "written" ? (answer?.manual ?? (a.grading === "graded" ? 0 : null)) : (answer?.auto ?? 0),
-        }
+        const o = itemOutcome(item, scores.get(item.itemId), voids.get(item.itemId))
+        return { type: o.voided ? `${item.type} (voided)` : item.type, max: o.max, score: o.score }
       }),
     }
   })
 }
 export type ResultReport = Awaited<ReturnType<typeof getResultReport>>
+
+/**
+ * After a post-publication change (regrade, void), every issued report whose snapshot no
+ * longer matches the recalculated total is marked Replaced at once, so an old PDF's QR code
+ * stops vouching for an outdated score immediately, not only when a new PDF is downloaded.
+ */
+export async function supersedeChangedReports(tx: Tx, attemptIds: string[]) {
+  if (!attemptIds.length) return 0
+  const rows = await tx
+    .update(resultReports)
+    .set({ revokedAt: new Date() })
+    .where(
+      and(
+        inArray(resultReports.attemptId, attemptIds),
+        isNull(resultReports.revokedAt),
+        sql`exists (select 1 from ${attempts} a where a.id = ${resultReports.attemptId} and (a.score_total is distinct from ${resultReports.scoreSnapshot} or a.max_marks <> ${resultReports.maxSnapshot}))`
+      )
+    )
+    .returning({ id: resultReports.id })
+  return rows.length
+}

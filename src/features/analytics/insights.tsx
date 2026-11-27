@@ -121,6 +121,11 @@ export function Insights({ data }: { data: ExamAnalytics }) {
                 <tr key={q.id} className="border-t">
                   <td className="max-w-xs py-3 pr-3">
                     {q.stem}
+                    {q.voided && (
+                      <p className="mt-1 text-xs font-medium text-warning-text">
+                        Voided for everyone ({q.voided === "exclude" ? "removed from every paper" : "full marks for all"}). Not scored.
+                      </p>
+                    )}
                     <ul className="mt-2 flex flex-wrap gap-1">
                       {q.flags.map((flag) => (
                         <li

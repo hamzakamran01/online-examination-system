@@ -1,6 +1,6 @@
 # Build plan
 
-**Status:** Phases 0 and 1 verified | P2.1, P2.2 done | P2.3 to P2.5 and P3.1, P3.2 built on `feat/monitoring-resilience`, verified locally (40 service checks + browser walkthrough), awaiting merge and live check | P2.10, P3.3 built and verified locally | next: live check after merge, then second innovation (depth over breadth) | `[~]` = built and verified locally, not yet on the live URL
+**Status:** Phases 0 and 1 verified | P2.1, P2.2 done | P2.3 to P2.10 and P3.1 to P3.3 merged | P3.5 to P3.9 (5.3 completion + 5.4 disputes) built and verified locally on `feat/monitoring-resilience`: `pnpm verify:trust` 59/59, unit tests 63/63 | Codex wave 2: CX-11 merged | `[~]` = built and verified locally, not yet on the live URL
 
 Rules: tick only when it works end to end on the live URL. "built" = code merged, not yet verified in a browser.
 Each task maps to SPEC IDs. Brief sections define WHAT we build; this order follows dependencies and marks at risk.
@@ -52,6 +52,11 @@ Each task maps to SPEC IDs. Brief sections define WHAT we build; this order foll
 - [~] P3.1 Heartbeat: server-measured connection gaps recorded as `connection_gap` with duration (I-5.3)
 - [~] P3.2 Examiner grants extension: default = measured gap, reason required, total capped (15 min per attempt), attempt row locked while granting, audit log, candidate notified, deadline recomputed (I-5.3)
 - [~] P3.3 T-2 min unsynced-answers warning; resume-on-another-device demo path (I-5.3)
+- [~] P3.5 Gap causes: presence ledger (hidden and offline time since last ack, monotonic) on heartbeats and saves; server labels each gap background_tab / device_offline / no_contact; only real outages count towards suggestions (I-5.3)
+- [~] P3.6 Declare an outage: pick a window, preview who the server measured as cut off, grant each their own measured loss (minus time already given, within the cap) under one audited reason; exam then attempts locked; request key makes it idempotent (I-5.3)
+- [~] P3.7 Evidence beside grading: outages with cause, extensions with reasons, signals, device changes, shown on the grader and in dispute evidence (I-5.3, I-5.4)
+- [~] P3.8 Device switch verified: answers, flags and deadline restored from the server, device_change recorded, the other device's ledger ignored (I-5.3)
+- [~] P3.9 Disputes (second innovation 5.4): raise, evidence pack, reject / regrade / void for everyone, shared scoring rules (voids and overrides) in recalculation, results, PDFs; reports replaced at once; hotspots; candidate timeline; Disputes tab
 - [ ] P3.4 (stretch) Fair paper generation: exam blueprint = N questions per (type, difficulty, marks); each candidate draws the least-used questions first with random ties, so every paper has identical difficulty mix and total marks (I-5.2)
 
 ## Phase 4: FEATURE FREEZE (final 1:30)
