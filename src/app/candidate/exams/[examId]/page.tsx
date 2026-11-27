@@ -17,7 +17,6 @@ export default async function LobbyPage({ params }: PageProps<"/candidate/exams/
     if (e instanceof AppError && e.code === "NOT_FOUND") notFound()
     throw e
   })
-  const effectiveMin = Math.min(exam.durationMin, Math.max(0, Math.floor((exam.endsAt.getTime() - Date.now()) / 60_000)))
 
   return (
     <div className="max-w-3xl">
@@ -65,7 +64,7 @@ export default async function LobbyPage({ params }: PageProps<"/candidate/exams/
           </div>
         </Panel>
 
-        <StartExam examId={exam.id} access={exam.access.kind} attemptId={"attemptId" in exam.access ? exam.access.attemptId : undefined} minutes={effectiveMin} fullMinutes={exam.durationMin} />
+        <StartExam examId={exam.id} access={exam.access.kind} attemptId={"attemptId" in exam.access ? exam.access.attemptId : undefined} minutes={exam.minutesAvailable} fullMinutes={exam.durationMin} />
       </div>
     </div>
   )

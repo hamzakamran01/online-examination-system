@@ -12,7 +12,8 @@ import { effectiveStatus } from "@/lib/domain/exam-status"
 /** Enrollment table with each candidate's real attempt state (C-3.4.1). */
 export async function listEnrollments(actor: SessionUser, examId: string) {
   await getManagedExam(actor, examId)
-  return db
+  const now = Date.now()
+  const rows = await db
     .select({
       candidateId: user.id,
       name: user.name,
@@ -35,6 +36,14 @@ export async function listEnrollments(actor: SessionUser, examId: string) {
     )
     .where(eq(enrollments.examId, examId))
     .orderBy(asc(user.name))
+  return rows.map((r) => ({
+    ...r,
+    state: !r.attemptId
+      ? ("not_started" as const)
+      : r.attemptStatus === "in_progress" && r.deadlineAt && r.deadlineAt.getTime() > now
+        ? ("in_progress" as const)
+        : ("submitted" as const),
+  }))
 }
 
 /** Candidate directory for enrollment pickers (name and email only). */

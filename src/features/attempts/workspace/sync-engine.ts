@@ -13,9 +13,16 @@ import type { AnswerResponse } from "@/lib/domain/paper"
 
 export type Entry = { response: AnswerResponse | null; flagged: boolean; seq: number }
 export type SyncState = "saved" | "saving" | "offline" | "retrying" | "error"
+export type Snapshot = { state: SyncState; pending: number; lastSyncedAt: number | null }
+export const SERVER_SNAPSHOT: Snapshot = { state: "saved", pending: 0, lastSyncedAt: null }
+type FlushOutcome = { kind: "finalized"; reason: string } | { kind: "unauthorized" }
+type Listener = () => void
+
+const isBrowser = () => typeof window !== "undefined"
 
 const store = {
   get<T>(key: string, fallback: T): T {
+    if (!isBrowser()) return fallback
     try {
       const raw = window.localStorage.getItem(key)
       return raw ? (JSON.parse(raw) as T) : fallback
@@ -24,6 +31,7 @@ const store = {
     }
   },
   set(key: string, value: unknown) {
+    if (!isBrowser()) return
     try {
       window.localStorage.setItem(key, JSON.stringify(value))
     } catch {
@@ -41,9 +49,6 @@ export function getClientId() {
   return id
 }
 
-type Listener = () => void
-type FlushOutcome = { kind: "finalized"; reason: string } | { kind: "unauthorized" }
-
 export class SyncEngine {
   private pending: Record<string, Entry>
   private seq: number
@@ -52,48 +57,58 @@ export class SyncEngine {
   private failures = 0
   private listeners = new Set<Listener>()
   private stopped = false
-  state: SyncState = "saved"
-  lastSyncedAt: number | null = null
-  offsetMs = 0
+  private state: SyncState = "saved"
+  private lastSyncedAt: number | null = null
+  private snapshot: Snapshot = SERVER_SNAPSHOT
+  private onServerTime: (serverNow: number, deadline: number) => void = () => {}
+  private onTerminal: (o: FlushOutcome) => void = () => {}
 
   constructor(
     private attemptId: string,
-    serverSeqMax: number,
-    private onServerTime: (serverNow: number, deadline: number) => void,
-    private onTerminal: (o: FlushOutcome) => void
+    serverSeqMax: number
   ) {
     this.pending = store.get<Record<string, Entry>>(this.key("journal"), {})
     this.seq = Math.max(serverSeqMax, store.get<number>(this.key("seq"), 0))
+  }
+
+  /** Callbacks close over React state, so they are wired after mount. */
+  bind(onServerTime: (serverNow: number, deadline: number) => void, onTerminal: (o: FlushOutcome) => void) {
+    this.onServerTime = onServerTime
+    this.onTerminal = onTerminal
+    this.stopped = false
   }
 
   private key(k: string) {
     return `ev:${k}:${this.attemptId}`
   }
 
-  subscribe(fn: Listener) {
+  /* useSyncExternalStore contract: stable subscribe and immutable snapshots. */
+  subscribe = (fn: Listener) => {
     this.listeners.add(fn)
     return () => void this.listeners.delete(fn)
   }
+  getSnapshot = () => this.snapshot
   private emit() {
+    this.snapshot = { state: this.state, pending: this.pendingCount, lastSyncedAt: this.lastSyncedAt }
     this.listeners.forEach((l) => l())
   }
   private setState(s: SyncState) {
-    if (this.state !== s) {
-      this.state = s
-      this.emit()
-    }
+    this.state = s
+    this.emit()
   }
 
   get pendingCount() {
     return Object.keys(this.pending).length
   }
-  /** Journal entries newer than the server copy (restored after refresh while offline). */
+
+  /** Journal entries newer than the server copy (e.g. refreshed while offline). */
   restorable(serverSeqs: Record<string, number>) {
     return Object.entries(this.pending).filter(([itemId, e]) => e.seq > (serverSeqs[itemId] ?? 0))
   }
   dropStale(serverSeqs: Record<string, number>) {
     for (const [itemId, e] of Object.entries(this.pending)) if (e.seq <= (serverSeqs[itemId] ?? 0)) delete this.pending[itemId]
     store.set(this.key("journal"), this.pending)
+    this.emit()
   }
 
   record(itemId: string, response: AnswerResponse | null, flagged: boolean, debounceMs = 500): Entry {
@@ -119,7 +134,7 @@ export class SyncEngine {
       this.setState("saved")
       return
     }
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
+    if (!navigator.onLine) {
       this.setState("offline")
       return
     }
@@ -134,20 +149,18 @@ export class SyncEngine {
         cache: "no-store",
       })
       const body = await res.json().catch(() => null)
+      this.inflight = false
       if (res.ok) {
         for (const a of body.acked as { itemId: string; seq: number }[])
           if (this.pending[a.itemId]?.seq === a.seq) delete this.pending[a.itemId]
         store.set(this.key("journal"), this.pending)
-        const rtt = Date.now() - sentAt
-        this.onServerTime(Date.parse(body.serverNow) + rtt / 2, Date.parse(body.deadlineAt))
+        this.onServerTime(Date.parse(body.serverNow) + (Date.now() - sentAt) / 2, Date.parse(body.deadlineAt))
         this.failures = 0
         this.lastSyncedAt = Date.now()
-        this.inflight = false
         if (this.pendingCount) return this.flush()
         this.setState("saved")
         return
       }
-      this.inflight = false
       const code = body?.error?.code as string | undefined
       if (res.status === 409) {
         this.stop()
@@ -160,7 +173,7 @@ export class SyncEngine {
         return
       }
       if (res.status === 400) {
-        // A malformed entry would block the queue forever: drop it, keep the rest.
+        // A malformed entry would block the queue forever: drop the batch and report it.
         this.pending = {}
         store.set(this.key("journal"), this.pending)
         this.setState("error")
@@ -170,7 +183,7 @@ export class SyncEngine {
     } catch {
       this.inflight = false
       this.failures++
-      this.setState(typeof navigator !== "undefined" && !navigator.onLine ? "offline" : "retrying")
+      this.setState(navigator.onLine ? "retrying" : "offline")
       this.schedule(Math.min(15_000, 1000 * 2 ** Math.min(this.failures, 4)))
     }
   }
@@ -183,5 +196,6 @@ export class SyncEngine {
   clearJournal() {
     this.pending = {}
     store.set(this.key("journal"), {})
+    this.emit()
   }
 }

@@ -8,7 +8,6 @@ export default async function CandidatesPage({ params }: PageProps<"/examiner/ex
   const actor = await requirePageRole("examiner")
   const { examId } = await params
   const [exam, rows] = await Promise.all([getManagedExam(actor, examId), listEnrollments(actor, examId)])
-  const now = Date.now()
   return (
     <EnrollmentManager
       examId={exam.id}
@@ -19,11 +18,7 @@ export default async function CandidatesPage({ params }: PageProps<"/examiner/ex
         name: r.name,
         email: r.email,
         active: r.active,
-        state: !r.attemptId
-          ? "not_started"
-          : r.attemptStatus === "in_progress" && r.deadlineAt && r.deadlineAt.getTime() > now
-            ? "in_progress"
-            : "submitted",
+        state: r.state,
         score: r.scoreTotal,
         grading: r.gradingStatus,
       }))}

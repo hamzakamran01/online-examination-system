@@ -503,7 +503,9 @@ export async function getCandidateLobby(actor: SessionUser, examId: string) {
   const list = await listCandidateExams(actor)
   const exam = list.find((e) => e.id === examId)
   if (!exam) throw notFound("Exam")
-  return exam
+  // Minutes a candidate starting now would get (duration capped by the window).
+  const minutesAvailable = Math.min(exam.durationMin, Math.max(0, Math.floor((exam.endsAt.getTime() - Date.now()) / 60_000)))
+  return { ...exam, minutesAvailable }
 }
 
 export async function listSandboxAttempts(actor: SessionUser, examId: string) {
