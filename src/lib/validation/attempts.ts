@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { presenceSchema } from "./monitoring"
 
 export const answerResponseSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("choice"), selected: z.array(z.uuid()).max(8) }),
@@ -18,5 +19,6 @@ export const saveAnswersSchema = z.object({
     )
     .min(1)
     .max(200),
+  presence: presenceSchema.optional(),
 })
 export type SaveAnswersInput = z.infer<typeof saveAnswersSchema>

@@ -6,11 +6,12 @@ import {
   CLIENT_SIGNAL_CAP,
   DEVICE_CHANGE_DEDUPE_MS,
   MIN_TAB_AWAY_MS,
+  classifyGap,
   measureGapSec,
 } from "@/lib/domain/monitoring"
-import type { ClientSignal } from "@/lib/validation/monitoring"
+import type { ClientSignal, Presence } from "@/lib/validation/monitoring"
 
-type Presence = Pick<typeof attempts.$inferSelect, "id" | "lastSeenAt" | "lastClientId">
+type AttemptPresence = Pick<typeof attempts.$inferSelect, "id" | "lastSeenAt" | "lastClientId">
 
 /**
  * Records that the server heard from an in-progress attempt (I-5.3).
@@ -18,17 +19,32 @@ type Presence = Pick<typeof attempts.$inferSelect, "id" | "lastSeenAt" | "lastCl
  *
  * - A silence longer than the gap threshold is stored as a server-measured
  *   `connection_gap`: the evidence comes from server timestamps, not from the candidate.
+ * - The gap is labelled with its likely cause from the client's presence ledger
+ *   (hidden tab, device offline, or no contact). The duration stays server-measured;
+ *   the ledger only explains it. A ledger sent by a different device cannot describe
+ *   the silence, so it is ignored.
  * - A different client id means the attempt continued on another browser or device.
  */
-export async function touchAttempt(tx: Tx, a: Presence, clientId: string, now: Date) {
+export async function touchAttempt(tx: Tx, a: AttemptPresence, clientId: string, now: Date, presence?: Presence) {
   const gapSec = measureGapSec(a.lastSeenAt, now)
-  if (gapSec !== null && a.lastSeenAt)
+  if (gapSec !== null && a.lastSeenAt) {
+    const sameDevice = !a.lastClientId || a.lastClientId === clientId
+    const ledger = sameDevice ? presence : undefined
+    const cause = classifyGap(now.getTime() - a.lastSeenAt.getTime(), ledger)
     await tx.insert(attemptEvents).values({
       attemptId: a.id,
       type: "connection_gap",
       source: "server",
-      detail: { gapSec, from: a.lastSeenAt.toISOString(), to: now.toISOString() },
+      detail: {
+        gapSec,
+        cause,
+        from: a.lastSeenAt.toISOString(),
+        to: now.toISOString(),
+        ...(ledger ? { hiddenSec: Math.round(ledger.hiddenMs / 1000), offlineSec: Math.round(ledger.offlineMs / 1000) } : {}),
+        ...(sameDevice ? {} : { note: "Resumed on another device: cause not reported" }),
+      },
     })
+  }
 
   if (a.lastClientId && a.lastClientId !== clientId) {
     // Two devices taking turns would log on every request: collapse repeats.

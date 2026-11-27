@@ -336,6 +336,36 @@ export const attemptEvents = pgTable(
   (t) => [index("attempt_events_attempt_idx").on(t.attemptId, t.serverTs)]
 )
 
+/**
+ * Declared incident (I-5.3): a server or network outage affecting many candidates at once.
+ * The examiner declares a time window; each affected attempt is compensated with its own
+ * server-measured overlap, under one audited reason. `requestKey` makes the grant idempotent.
+ */
+export const examIncidents = pgTable(
+  "exam_incidents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    examId: uuid("exam_id")
+      .notNull()
+      .references(() => exams.id, { onDelete: "cascade" }),
+    windowFrom: ts("window_from").notNull(),
+    windowTo: ts("window_to").notNull(),
+    reason: text("reason").notNull(),
+    declaredBy: text("declared_by")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    requestKey: text("request_key").notNull(),
+    affected: integer("affected").notNull().default(0),
+    totalSec: integer("total_sec").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("exam_incidents_request_uq").on(t.examId, t.requestKey),
+    index("exam_incidents_exam_idx").on(t.examId, t.createdAt),
+    check("exam_incidents_window_valid", sql`${t.windowTo} > ${t.windowFrom}`),
+  ]
+)
+
 export const timeExtensions = pgTable("time_extensions", {
   id: uuid("id").primaryKey().defaultRandom(),
   attemptId: uuid("attempt_id")
@@ -346,8 +376,71 @@ export const timeExtensions = pgTable("time_extensions", {
   grantedBy: text("granted_by")
     .notNull()
     .references(() => user.id, { onDelete: "restrict" }),
+  /** Set when the extension was granted as part of a declared incident. */
+  incidentId: uuid("incident_id").references(() => examIncidents.id, { onDelete: "set null" }),
   createdAt: createdAt(),
 })
+
+/* ----------------------------------------------------------------------------
+ * Disputes and voided questions (I-5.4)
+ * ------------------------------------------------------------------------- */
+export const disputeTypeEnum = pgEnum("dispute_type", ["grading_error", "ambiguous_question", "technical_incident"])
+export const disputeStatusEnum = pgEnum("dispute_status", ["open", "regraded", "rejected", "voided", "withdrawn"])
+export const voidPolicyEnum = pgEnum("void_policy", ["exclude", "full_marks"])
+
+export const disputes = pgTable(
+  "disputes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    examId: uuid("exam_id")
+      .notNull()
+      .references(() => exams.id, { onDelete: "cascade" }),
+    attemptId: uuid("attempt_id")
+      .notNull()
+      .references(() => attempts.id, { onDelete: "cascade" }),
+    /** Paper item (question id frozen in the candidate's paper). */
+    itemId: uuid("item_id").notNull(),
+    candidateId: text("candidate_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    type: disputeTypeEnum("type").notNull(),
+    statement: text("statement").notNull(),
+    status: disputeStatusEnum("status").notNull().default("open"),
+    marksBefore: marks("marks_before"),
+    marksAfter: marks("marks_after"),
+    resolutionNote: text("resolution_note"),
+    resolvedBy: text("resolved_by").references(() => user.id, { onDelete: "set null" }),
+    resolvedAt: ts("resolved_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    // One dispute per question per attempt: a decision is final, not re-litigated by spam.
+    uniqueIndex("disputes_attempt_item_uq").on(t.attemptId, t.itemId),
+    index("disputes_exam_idx").on(t.examId, t.status),
+    index("disputes_candidate_idx").on(t.candidateId),
+  ]
+)
+
+/** A question voided for every candidate of an exam, with one consistent rule (I-5.4). */
+export const itemVoids = pgTable(
+  "item_voids",
+  {
+    examId: uuid("exam_id")
+      .notNull()
+      .references(() => exams.id, { onDelete: "cascade" }),
+    itemId: uuid("item_id").notNull(),
+    policy: voidPolicyEnum("policy").notNull(),
+    reason: text("reason").notNull(),
+    disputeId: uuid("dispute_id").references(() => disputes.id, { onDelete: "set null" }),
+    voidedBy: text("voided_by")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    affected: integer("affected").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.examId, t.itemId] })]
+)
 
 /* ----------------------------------------------------------------------------
  * Monitoring (C-3.6)
@@ -407,3 +500,6 @@ export type Difficulty = (typeof difficultyEnum.enumValues)[number]
 export type MultiScheme = (typeof multiSchemeEnum.enumValues)[number]
 export type ExamStatus = (typeof examStatusEnum.enumValues)[number]
 export type AttemptEventType = (typeof eventTypeEnum.enumValues)[number]
+export type DisputeType = (typeof disputeTypeEnum.enumValues)[number]
+export type DisputeStatus = (typeof disputeStatusEnum.enumValues)[number]
+export type VoidPolicy = (typeof voidPolicyEnum.enumValues)[number]
