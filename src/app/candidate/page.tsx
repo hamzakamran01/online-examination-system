@@ -1,9 +1,11 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowRight, CalendarClock, CheckCircle2, ClipboardList, Clock, FileCheck2, Lock, PlayCircle } from "lucide-react"
+import { ArrowRight, CalendarClock, ClipboardList, Clock, CloudOff, FileCheck2, Flag, Lock, PlayCircle, ShieldCheck, Timer } from "lucide-react"
 import { requirePageRole } from "@/server/auth/guards"
-import { listCandidateExams } from "@/server/services/attempts"
-import { PageHeader, SectionTitle } from "@/components/shell/page-header"
+import type { listCandidateExams } from "@/server/services/attempts"
+import { getCandidateDashboard } from "@/server/services/dashboard"
+import { HeroBand, greeting, heroPrimary } from "@/components/shell/hero"
+import { Panel, PanelHeader, SectionTitle } from "@/components/shell/page-header"
 import { buttonVariants } from "@/components/ui/button"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Countdown } from "@/features/attempts/countdown"
@@ -35,7 +37,7 @@ function pickFocus(items: Item[]) {
 function Focus({ e }: { e: Item }) {
   const a = e.access
   return (
-    <section aria-labelledby="focus-title" className="mb-10 overflow-hidden rounded-xl border bg-surface">
+    <section aria-labelledby="focus-title" className="overflow-hidden rounded-xl border bg-surface">
       <div className="grid gap-6 p-6 sm:p-8 md:grid-cols-[1fr_auto] md:items-center">
         <div className="min-w-0">
           <div className="mb-3 flex items-center gap-2">
@@ -164,24 +166,65 @@ function Group({ title, hint, items, icon: Icon }: { title: string; hint: string
 
 export default async function CandidateHome() {
   const actor = await requirePageRole("candidate")
-  const exams = await listCandidateExams(actor)
+  const { exams, results, counts } = await getCandidateDashboard(actor)
   const focus = pickFocus(exams)
   const rest = exams.filter((e) => e !== focus)
   const now = rest.filter((e) => e.access.kind === "open" || e.access.kind === "resume")
   const upcoming = rest.filter((e) => e.access.kind === "upcoming")
   const done = rest.filter((e) => e.access.kind === "submitted" || e.access.kind === "closed").reverse()
-  const published = exams.filter((e) => e.access.kind === "submitted" && e.resultsPublishedAt).length
+  const first = actor.name.split(" ")[0]
+  const fa = focus?.access
+
+  const summary =
+    fa?.kind === "resume"
+      ? `${focus!.title} is in progress. Your timer is running on the server; resume to continue.`
+      : fa?.kind === "open"
+        ? `${focus!.title} is open now. Read the instructions, then start when you are ready.`
+        : fa?.kind === "upcoming"
+          ? `Next up: ${focus!.title}, opening ${fmtDateTime(fa.opensAt)}.`
+          : exams.length
+            ? "Nothing is open or scheduled right now."
+            : "When your examiner enrolls you, your exams appear here."
+
+  const guide = [
+    { icon: Timer, title: "The server keeps time", body: "Your deadline is set when you start. Closing the tab or changing your clock does not stop or change it." },
+    { icon: CloudOff, title: "Answers survive outages", body: "Each answer is kept on your device first and synced. Keep working if the connection drops." },
+    { icon: Flag, title: "Flag and review", body: "Mark any question for review, filter unanswered ones, and check everything before you submit." },
+    { icon: ShieldCheck, title: "Verifiable results", body: "Your result PDF carries a code and QR anyone can use to confirm it is genuine." },
+  ]
 
   return (
     <>
-      <PageHeader
-        title={`Hello, ${actor.name.split(" ")[0]}`}
-        description={
-          published
-            ? `${published} result${published === 1 ? " is" : "s are"} published. Times are shown in your timezone; deadlines follow the server clock.`
-            : "Your examinations. Times are shown in your timezone; deadlines follow the server clock."
+      <HeroBand
+        kicker={`${greeting(new Date())}, ${first}`}
+        title="Your examinations"
+        summary={summary}
+        actions={
+          fa?.kind === "resume" ? (
+            <Link href={`/attempt/${fa.attemptId}`} className={heroPrimary}>
+              <PlayCircle />
+              Resume exam
+            </Link>
+          ) : fa?.kind === "open" ? (
+            <Link href={`/candidate/exams/${focus!.id}`} className={heroPrimary}>
+              Read instructions and start
+              <ArrowRight />
+            </Link>
+          ) : fa?.kind === "upcoming" ? (
+            <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-right">
+              <p className="text-xs text-muted-foreground">Opens in</p>
+              <Countdown to={fa.opensAt.toISOString()} className="font-mono text-xl font-semibold tabular-nums" />
+            </div>
+          ) : undefined
         }
+        metrics={[
+          { label: "Open now", value: counts.open },
+          { label: "Upcoming", value: counts.upcoming },
+          { label: "Completed", value: counts.completed },
+          { label: "Average score", value: counts.average === null ? "None yet" : `${counts.average}%`, hint: results.length ? `${results.length} published` : undefined },
+        ]}
       />
+
       {!exams.length ? (
         <Empty className="rounded-xl border bg-surface py-16">
           <EmptyHeader>
@@ -193,21 +236,64 @@ export default async function CandidateHome() {
           </EmptyHeader>
         </Empty>
       ) : (
-        <>
-          {focus ? (
-            <Focus e={focus} />
-          ) : (
-            <p className="mb-10 flex items-center gap-2 rounded-xl border bg-surface px-5 py-4 text-sm text-muted-foreground">
-              <CheckCircle2 className="size-4 text-success-text" aria-hidden />
-              Nothing is open or scheduled right now.
-            </p>
-          )}
-          <div className="flex flex-col gap-8">
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="flex flex-col gap-8 lg:col-span-2">
+            {focus && <Focus e={focus} />}
             <Group title="Also available" hint="Open now" items={now} icon={PlayCircle} />
             <Group title="Upcoming" hint="Instructions are available before the window opens" items={upcoming} icon={Lock} />
             <Group title="Completed" hint="Your answers, and results once published" items={done} icon={FileCheck2} />
           </div>
-        </>
+
+          <aside className="flex flex-col gap-6">
+            <Panel>
+              <PanelHeader title="Your results" description={results.length ? "Published scores, oldest first" : undefined} />
+              {results.length ? (
+                <ul className="flex flex-col gap-4 p-5">
+                  {results.map((r) => (
+                    <li key={r.id}>
+                      <Link href={`/candidate/results/${r.attemptId}`} className="group block">
+                        <span className="flex items-baseline justify-between gap-3 text-sm">
+                          <span className="truncate font-medium group-hover:underline">{r.title}</span>
+                          <span className="font-display shrink-0 font-semibold tabular-nums">{r.percent}%</span>
+                        </span>
+                        <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
+                          <span
+                            className={cn("block h-full rounded-full", r.percent >= 70 ? "bg-success" : r.percent >= 50 ? "bg-primary" : "bg-time")}
+                            style={{ width: `${r.percent}%` }}
+                          />
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="px-5 py-6 text-sm text-muted-foreground">Scores appear here once your examiners publish results.</p>
+              )}
+            </Panel>
+
+            <Panel>
+              <PanelHeader title="How your exam works" />
+              <ul className="flex flex-col gap-4 p-5 text-sm">
+                {guide.map((g) => (
+                  <li key={g.title} className="flex gap-3">
+                    <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-md bg-brand-soft text-brand-text">
+                      <g.icon className="size-3.5" aria-hidden />
+                    </span>
+                    <span>
+                      <span className="block font-medium">{g.title}</span>
+                      <span className="text-muted-foreground">{g.body}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="border-t px-5 py-3">
+                <Link href="/verify" className="text-sm font-medium text-brand-text hover:underline">
+                  Verify a result report
+                </Link>
+              </div>
+            </Panel>
+          </aside>
+        </div>
       )}
     </>
   )
