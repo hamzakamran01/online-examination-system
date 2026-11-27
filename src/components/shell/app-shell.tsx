@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
 import { BookOpenCheck, ClipboardList, FileClock, FileUp, LayoutDashboard, LogOut, Menu, Moon, Sun, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -36,7 +36,6 @@ function isActive(pathname: string, item: NavItem) {
 
 function SidebarBody({ role, user, onNavigate }: { role: Role; user: { name: string; email: string }; onNavigate?: () => void }) {
   const pathname = usePathname()
-  const router = useRouter()
   const { resolvedTheme, setTheme } = useTheme()
   const [signingOut, setSigningOut] = React.useState(false)
 
@@ -101,8 +100,8 @@ function SidebarBody({ role, user, onNavigate }: { role: Role; user: { name: str
             onClick={async () => {
               setSigningOut(true)
               await authClient.signOut()
-              router.replace("/login")
-              router.refresh()
+              // Full navigation clears every cached server component of the old session.
+              window.location.replace("/login")
             }}
           >
             <LogOut />

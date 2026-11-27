@@ -3,7 +3,6 @@
 import * as React from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useRouter } from "next/navigation"
 import { AlertCircle, Loader2 } from "lucide-react"
 import { authClient } from "@/lib/auth-client"
 import { signInSchema, type SignInInput } from "@/lib/validation/auth"
@@ -18,14 +17,15 @@ const DEMO = [
 ]
 
 export function LoginForm({ next }: { next?: string }) {
-  const router = useRouter()
   const [error, setError] = React.useState<string | null>(null)
   const form = useForm<SignInInput>({ resolver: zodResolver(signInSchema), defaultValues: { email: "", password: "" } })
   const { errors, isSubmitting } = form.formState
 
   const onSubmit = form.handleSubmit(async (values) => {
     setError(null)
-    const { error: err } = await authClient.signIn.email(values).catch(() => ({ error: { status: 0, code: "NETWORK" } as { status: number; code?: string } }))
+    const { data, error: err } = await authClient
+      .signIn.email(values)
+      .catch(() => ({ data: null, error: { status: 0, code: "NETWORK" } as { status: number; code?: string } }))
     if (err) {
       const code = (err as { code?: string }).code
       setError(
@@ -43,8 +43,11 @@ export function LoginForm({ next }: { next?: string }) {
       )
       return
     }
-    router.replace(next ?? "/")
-    router.refresh()
+    // Full navigation: the new session cookie must reach every server component, and a
+    // client-side replace followed by refresh can race the server redirect.
+    const role = (data?.user as { role?: string } | undefined)?.role
+    const home = role === "admin" ? "/admin" : role === "examiner" ? "/examiner" : role === "candidate" ? "/candidate" : "/"
+    window.location.replace(next ?? home)
   })
 
   return (

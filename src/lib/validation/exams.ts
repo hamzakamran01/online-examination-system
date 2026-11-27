@@ -18,9 +18,11 @@ export const examSchema = z
     durationMin: z.coerce.number("Enter a number.").int("Use whole minutes.").min(1, "At least 1 minute.").max(600, "At most 600 minutes."),
     totalMarks: halfMarks("Total marks"),
     passMark: z
-      .union([z.literal(""), z.coerce.number().min(0, "Pass mark cannot be negative.")])
+      // Accepts "" (empty input), null (already-parsed client data, re-validated on the server) or a number.
+      // z.coerce would turn null into 0, which would silently make everyone pass.
+      .union([z.literal(""), z.null(), z.coerce.number().min(0, "Pass mark cannot be negative.")])
       .optional()
-      .transform((v) => (v === "" || v === undefined ? null : v)),
+      .transform((v) => (v === "" || v === undefined || v === null ? null : v)),
     shuffleQuestions: z.boolean().default(true),
     shuffleOptions: z.boolean().default(true),
     releaseAnswerReview: z.boolean().default(false),

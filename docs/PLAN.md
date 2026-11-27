@@ -1,6 +1,6 @@
 # Build plan
 
-**Status:** Phase 0 done (deployed) | Phase 1 built, verification gate in progress (V.0) | Codex CX-1 to CX-3 merged into main; CX-4 in review; CX-5 to CX-10 queued
+**Status:** Phase 0 and Phase 1 done and verified | Phase 2 in progress (P2.1 grading) | Codex: CX-1 to CX-3 merged, CX-4 onward in progress
 
 Rules: tick only when it works end to end on the live URL. "built" = code merged, not yet verified in a browser.
 Each task maps to SPEC IDs. Brief sections define WHAT we build; this order follows dependencies and marks at risk.
@@ -14,24 +14,24 @@ Each task maps to SPEC IDs. Brief sections define WHAT we build; this order foll
 - [x] P0.5 Deployed to Vercel (vercel.json, lazy DB client, /api/health diagnostics) (SUB-7.1)
 
 ## Phase 1: core workflow (built, verifying)
-- [ ] P1.1 App shell per role, nav (UX-8.1) - built
-- [ ] P1.2 Admin users: list, create, role, deactivate, reset password + audit log (C-3.1.2) - built
-- [ ] P1.3 Question bank CRUD, topics, filters, 3 types + schemes, lock when in published exam (C-3.3.1, C-3.3.2) - built
-- [ ] P1.4 Exam CRUD, settings, assign questions with marks, review checklist, publish/unpublish/close (C-3.2.1 to C-3.2.3) - built
-- [ ] P1.5 Enrollment UI + candidate home grouped by status + lobby (C-3.4.1 to C-3.4.3) - built
-- [ ] P1.6 Attempt start: eligibility, frozen snapshot + shuffle, server deadline (C-3.3.3, T-6.2a, T-6.2d) - built
-- [ ] P1.7 Workspace: palette states, server-synced timer, journaled autosave with client_seq, resume, review + idempotent submit, lazy expiry (C-3.5.1 to C-3.5.3, T-6.2b) - built
-- [ ] P1.8 Auto grading incl. multi-select rules (C-3.7.1) - built
-- [ ] P1.9 Authz pass (C-3.1.3, T-6.1)
+- [x] P1.1 App shell per role, nav (UX-8.1)
+- [x] P1.2 Admin users: list, create, role, deactivate, reset password + audit log (C-3.1.2)
+- [x] P1.3 Question bank CRUD, topics, filters, 3 types + schemes, lock when in published exam (C-3.3.1, C-3.3.2)
+- [x] P1.4 Exam CRUD, settings, assign questions with marks, review checklist, publish/unpublish/close (C-3.2.1 to C-3.2.3)
+- [x] P1.5 Enrollment UI + candidate home grouped by status + lobby (C-3.4.1 to C-3.4.3)
+- [x] P1.6 Attempt start: eligibility, frozen snapshot + shuffle, server deadline (C-3.3.3, T-6.2a, T-6.2d)
+- [x] P1.7 Workspace: palette states, server-synced timer, journaled autosave with client_seq, resume, review + idempotent submit, lazy expiry (C-3.5.1 to C-3.5.3, T-6.2b)
+- [x] P1.8 Auto grading incl. multi-select rules (C-3.7.1)
+- [x] P1.9 Authz pass (C-3.1.3, T-6.1)
 
 ### V: verification gate (next, ~1 h) - must pass before Phase 2
-- [ ] V.0a 5 s in-flight grace at the deadline: saves accepted until deadline + 5 s, finalization after the grace, submitted_at = deadline, candidate UI locks at zero (DECISIONS D10, T-6.2a)
-- [ ] V.0 Tamper-proof countdown: count down from the last server reading with `performance.now()` (monotonic), resync on every save and on focus; device clock changes have no effect (T-6.2a)
-- [ ] V.1 Live walkthrough as admin: create user, change role, deactivate, reset password, audit log entries
-- [ ] V.2 Live walkthrough as examiner: create question of each type, create exam, assign, enroll, checklist, publish, preview (sandbox)
-- [ ] V.3 Live walkthrough as candidate: home groups, lobby, start, answer all types, flag, refresh mid-exam, offline then online, submit twice, expiry on a short exam
-- [ ] V.4 Authz probe: candidate on another candidate's attempt, examiner2 on examiner's exam and question, candidate on examiner pages and APIs, unauthenticated API calls; network tab shows no answer key
-- [ ] V.5 Fix everything found, update SPEC statuses, commit
+- [x] V.0a 5 s in-flight grace at the deadline: saves accepted until deadline + 5 s, finalization after the grace, submitted_at = deadline, candidate UI locks at zero (DECISIONS D10, T-6.2a)
+- [x] V.0 Tamper-proof countdown: count down from the last server reading with `performance.now()` (monotonic), resync on every save and on focus; device clock changes have no effect (T-6.2a)
+- [x] V.1 Live walkthrough as admin: create user, change role, deactivate, reset password, audit log entries
+- [x] V.2 Live walkthrough as examiner: create question of each type, create exam, assign, enroll, checklist, publish, preview (sandbox)
+- [x] V.3 Live walkthrough as candidate: home groups, lobby, start, answer all types, flag, refresh mid-exam, offline then online, submit twice, expiry on a short exam
+- [x] V.4 Authz probe: candidate on another candidate's attempt, examiner2 on examiner's exam and question, candidate on examiner pages and APIs, unauthenticated API calls; network tab shows no answer key
+- [x] V.5 Fixed: login redirect race (blank page after sign-in), empty pass mark stored as 0 (double validation coerced null). Verified on a disposable DB branch: 14 engine checks, role access matrix, admin deactivation, examiner create/assign/enroll/publish, candidate answer/flag/offline/reconnect/auto-submit at deadline
 
 ## Phase 2: finish core, then integrate secondary
 1. Grading and results (completes the end-to-end workflow)
